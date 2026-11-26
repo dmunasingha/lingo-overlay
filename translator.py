@@ -3,7 +3,7 @@ Live voice-chat translator for gaming (Windows, fully local).
 
 Pipeline:
   Discord audio (via VB-Cable "CABLE Output", or speaker loopback as fallback)
-    -> speech detector (cuts audio into phrases at pauses)
+    -> speech detector (Silero VAD; cuts audio into phrases at pauses)
     -> Whisper: detect language; skip if in skip list; else translate to English
     -> on-screen subtitle overlay (click-through, always on top)
     -> optional English voice (Windows built-in TTS)
@@ -39,7 +39,6 @@ def _add_cuda_dlls():
 
 _add_cuda_dlls()
 TARGET_SR = 16000
-FRAME = 480  # 30 ms @ 16 kHz
 
 HALLUCINATIONS = {
     "thank you.", "thanks for watching!", "thank you for watching.",
@@ -94,16 +93,102 @@ def to_16k_mono(block, sr):
     return np.interp(x, np.arange(len(mono)), mono).astype(np.float32)
 
 
-class Segmenter:
-    """Energy-based speech detector. Emits one numpy array per spoken phrase."""
+class EnergyDetector:
+    """Classic energy threshold with a slowly tracked noise floor. 30 ms frames."""
 
-    def __init__(self, cfg, out_q):
-        self.out_q = out_q
-        self.silence_frames = int(cfg["vad_silence_ms"] / 30)
-        self.max_frames = int(cfg["vad_max_segment_s"] * 1000 / 30)
-        self.min_speech_frames = int(cfg["vad_min_speech_ms"] / 30)
-        self.abs_threshold = cfg["vad_threshold_db"]
+    name = "energy"
+    frame_len = 480  # 30 ms @ 16 kHz
+
+    def __init__(self, cfg):
+        self.abs_threshold = cfg.get("vad_threshold_db", -45)
         self.noise_db = -60.0
+
+    def is_speech(self, f, active):
+        db = 20 * np.log10(np.sqrt(np.mean(f * f)) + 1e-9)
+        speech = db > max(self.abs_threshold, self.noise_db + 10)
+        if not speech:  # slowly track background level
+            self.noise_db = 0.98 * self.noise_db + 0.02 * db
+        return speech
+
+
+class SileroDetector:
+    """Silero VAD v6 (MIT), streamed frame by frame through ONNX Runtime on one CPU thread.
+
+    Uses the model file bundled with faster-whisper, so nothing extra is downloaded.
+    The model takes 512-sample (32 ms) frames at 16 kHz plus 64 samples of context.
+    """
+
+    name = "silero"
+    frame_len = 512  # 32 ms @ 16 kHz (fixed by the model)
+    context_len = 64
+
+    def __init__(self, cfg):
+        import onnxruntime
+        from faster_whisper.utils import get_assets_path
+
+        path = Path(get_assets_path()) / "silero_vad_v6.onnx"
+        opts = onnxruntime.SessionOptions()
+        opts.inter_op_num_threads = 1
+        opts.intra_op_num_threads = 1
+        opts.log_severity_level = 4
+        self.session = onnxruntime.InferenceSession(
+            str(path), providers=["CPUExecutionProvider"], sess_options=opts)
+        self.threshold = float(cfg.get("vad_speech_threshold", 0.5))
+        # Hysteresis (as in Silero's own VADIterator): once speech has started,
+        # keep it going until the probability drops clearly below the threshold.
+        self.neg_threshold = max(self.threshold - 0.15, 0.01)
+        self.reset()
+
+    def reset(self):
+        self.h = np.zeros((1, 1, 128), dtype=np.float32)
+        self.c = np.zeros((1, 1, 128), dtype=np.float32)
+        self.context = np.zeros(self.context_len, dtype=np.float32)
+
+    def prob(self, f):
+        x = np.concatenate([self.context, f]).astype(np.float32, copy=False)[None, :]
+        out, self.h, self.c = self.session.run(None, {"input": x, "h": self.h, "c": self.c})
+        self.context = f[-self.context_len:]
+        return float(out.ravel()[0])
+
+    def is_speech(self, f, active):
+        return self.prob(f) >= (self.neg_threshold if active else self.threshold)
+
+
+def make_detector(cfg):
+    backend = str(cfg.get("vad_backend", "silero")).lower()
+    if backend == "energy":
+        return EnergyDetector(cfg)
+    if backend != "silero":
+        log(f"Unknown vad_backend '{backend}', using silero.")
+    try:
+        return SileroDetector(cfg)
+    except Exception as e:  # missing onnxruntime / model file: still usable
+        log(f"Silero VAD unavailable ({e}); falling back to the energy detector.")
+        return EnergyDetector(cfg)
+
+
+class Segmenter:
+    """Speech detector front end. Emits one numpy array per spoken phrase.
+
+    The per-frame speech/non-speech decision comes from a detector (Silero by
+    default, or the energy threshold); pre-roll, min-speech and max-segment
+    logic is shared.
+    """
+
+    def __init__(self, cfg, out_q, detector=None):
+        self.out_q = out_q
+        self.detector = detector or make_detector(cfg)
+        self.frame_len = self.detector.frame_len
+        frame_ms = self.frame_len * 1000 / TARGET_SR
+
+        def frames(ms):
+            return max(1, round(ms / frame_ms))
+
+        self.silence_frames = frames(cfg["vad_silence_ms"])
+        self.max_frames = frames(cfg["vad_max_segment_s"] * 1000)
+        self.min_speech_frames = frames(cfg["vad_min_speech_ms"])
+        self.preroll_frames = frames(300)  # audio kept from before speech starts
+        self.start_frames = 3  # consecutive speech frames needed to open a phrase
         self.buf = np.zeros(0, dtype=np.float32)
         self.preroll = []
         self.active = False
@@ -114,24 +199,22 @@ class Segmenter:
 
     def feed(self, samples):
         self.buf = np.concatenate([self.buf, samples])
-        while len(self.buf) >= FRAME:
-            f, self.buf = self.buf[:FRAME], self.buf[FRAME:]
+        n = self.frame_len
+        while len(self.buf) >= n:
+            f, self.buf = self.buf[:n], self.buf[n:]
             self._frame(f)
 
     def _frame(self, f):
-        db = 20 * np.log10(np.sqrt(np.mean(f * f)) + 1e-9)
-        is_speech = db > max(self.abs_threshold, self.noise_db + 10)
-        if not is_speech:  # slowly track background level
-            self.noise_db = 0.98 * self.noise_db + 0.02 * db
+        is_speech = self.detector.is_speech(f, self.active)
 
         if not self.active:
             self.preroll.append(f)
-            self.preroll = self.preroll[-10:]  # ~300 ms before speech starts
+            self.preroll = self.preroll[-self.preroll_frames:]
             self.start_streak = self.start_streak + 1 if is_speech else 0
-            if self.start_streak >= 3:
+            if self.start_streak >= self.start_frames:
                 self.active = True
                 self.frames = list(self.preroll)
-                self.speech_count = 3
+                self.speech_count = self.start_frames
                 self.silence_count = 0
             return
 
@@ -155,6 +238,7 @@ def capture_loop(cfg, seg_q, state):
     mic = open_recorder(cfg)
     sr = 48000
     seg = Segmenter(cfg, seg_q)
+    log(f"Speech detector: {seg.detector.name}")
     import warnings
     warnings.filterwarnings("ignore", message="data discontinuity")
     with mic.recorder(samplerate=sr, channels=1, blocksize=4800) as rec:
