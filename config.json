@@ -1,0 +1,32 @@
+{
+  "input_device": "CABLE Output",
+  "fallback_to_speaker_loopback": true,
+
+  "skip_languages": ["en"],
+  "skip_threshold": 0.25,
+
+  "model": "medium",
+  "device": "cpu",
+  "compute_type": "int8",
+  "cpu_threads": 6,
+
+  "vad_silence_ms": 450,
+  "vad_max_segment_s": 7,
+  "vad_min_speech_ms": 400,
+  "vad_threshold_db": -45,
+
+  "voice_enabled": false,
+  "voice_rate": 200,
+  "voice_volume": 0.8,
+
+  "overlay_enabled": true,
+  "overlay_font_size": 20,
+  "overlay_seconds": 6,
+  "overlay_bottom_offset": 160,
+  "overlay_opacity": 0.85,
+
+  "hotkey_toggle": "ctrl+alt+t",
+  "hotkey_voice": "ctrl+alt+v",
+  "hotkey_replay": "ctrl+alt+r",
+  "hotkey_quit": "ctrl+alt+q"
+}

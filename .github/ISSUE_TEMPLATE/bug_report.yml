@@ -1,0 +1,44 @@
+name: Bug report
+description: Something isn't working
+labels: ["bug", "needs-triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Paste the translator's console output (device names, detected languages, timings).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: config.json
+      render: json
+  - type: input
+    id: game
+    attributes:
+      label: Game / voice app
+      placeholder: Valorant, Discord, CS2 ...
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: Windows 11 24H2, Ryzen 7 7700X, GTX 1660, 16 GB
+    validations:
+      required: true
+  - type: dropdown
+    id: capture
+    attributes:
+      label: Audio capture
+      options:
+        - VB-Cable
+        - All speaker audio (fallback)
+        - Other

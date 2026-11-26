@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: e.g. "In CS2 I can't route voice chat separately, so..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Project rules
+      description: See CONTRIBUTING.md
+      options:
+        - label: Works without injecting into or hooking the game (anti-cheat safe)
+          required: true
+        - label: Works offline / without paid APIs (cloud only as an opt-in plugin)
+          required: true

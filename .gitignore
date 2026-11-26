@@ -1,0 +1,28 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Downloaded models (hundreds of MB to GBs - never commit)
+models/
+
+# Local recordings / benchmark clips
+*.wav
+*.mp3
+*.flac
+benchmarks/results/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Claude Code local settings
+.claude/settings.local.json
