@@ -21,7 +21,19 @@ Game voice chat ──► VB-Cable "CABLE Input" ──┬──► Windows "Lis
                               click-through, topmost)          off by default)
 ```
 
-Everything lives in `translator.py` today, with settings in `config.json`.
+The code lives in the `lingo_overlay` package (`translator.py` and `run.bat` remain as entry points;
+`python -m lingo_overlay` also works), with settings in `config.json`:
+
+| Module | What it does |
+|---|---|
+| `config.py` | Typed `Config` loaded from `config.json`, with validation and clear errors |
+| `audio/` | Capture (`capture.py`: VB-Cable or speaker loopback) and `to_16k_mono` resampling |
+| `vad/energy.py` | Energy-based `Segmenter` that cuts audio into phrases |
+| `asr/` | `ASRBackend` interface (`detect_language`, `translate`) and the faster-whisper backend |
+| `tts/sapi.py` | Windows SAPI voice |
+| `ui/overlay.py` | Click-through subtitle overlay |
+| `hotkeys.py`, `app.py` | Global hotkeys; wiring of threads and queues |
+
 
 ### Where the time goes (small model, CPU, game running)
 

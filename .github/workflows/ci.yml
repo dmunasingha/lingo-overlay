@@ -18,4 +18,4 @@ jobs:
       - name: Ruff lint
         run: ruff check .
       - name: Byte-compile
-        run: python -m compileall -q translator.py
+        run: python -m compileall -q translator.py lingo_overlay
