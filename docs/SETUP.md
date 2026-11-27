@@ -84,7 +84,10 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `low_priority` | `true` | Below-normal process priority, so the game always gets the CPU first |
 | `vad_backend` | `silero` | Speech detector. `silero` (neural, ignores game noise, breathing and keyboard clicks) or `energy` (old volume threshold, tuned with `vad_threshold_db`) |
 | `vad_speech_threshold` | `0.5` | Silero only. Raise (e.g. `0.6`) if noise still triggers, lower if quiet speakers are missed |
-| `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
+| `vad_silence_ms` | `450` | Pause that ends a phrase (with `vad_adaptive`: the pause when the end is unclear). Lower is faster, but more mid-sentence cuts |
+| `vad_adaptive` | `true` | Pick the pause from the speaker's energy: end sooner when a sentence trails off, wait longer when it stopped mid-word. `false` = always `vad_silence_ms` |
+| `vad_fast_silence_ms`, `vad_slow_silence_ms` | `250`, `700` | The adaptive "trailed off" and "cut mid-word" pauses |
+| `vad_merge_gap_ms` | `300` | A short fragment (under 0.8 s of speech) is held this long and joined to speech that starts again in that time. `0` = off |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
 

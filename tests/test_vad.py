@@ -38,7 +38,8 @@ def test_energy_detects_tone_phrase():
     seg, out = segments(cfg(vad_backend="energy"), tone_between_silence())
     assert seg.detector.name == "energy"
     assert len(out) == 1
-    assert 1.0 <= len(out[0]) / SR <= 1.9  # tone + pre-roll + closing silence
+    # tone + pre-roll + closing silence (up to 700 ms: an abrupt stop looks like a mid-word cut)
+    assert 1.0 <= len(out[0]) / SR <= 2.1
 
 
 def test_energy_ignores_silence():

@@ -12,6 +12,7 @@ def vad_cfg():
         "vad_min_speech_ms": 400,
         "vad_threshold_db": -45,
         "vad_backend": "energy",
+        "vad_adaptive": False,  # fixed 450 ms ending; adaptive is covered in test_endpointing.py
     }
 
 

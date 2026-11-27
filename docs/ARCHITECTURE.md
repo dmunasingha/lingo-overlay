@@ -9,7 +9,7 @@ Game voice chat ──► VB-Cable "CABLE Input" ──┬──► Windows "Lis
                                                      │
                                          capture thread (soundcard, 48 kHz → 16 kHz mono)
                                                      │
-                                         Segmenter: Silero VAD, cuts phrases at 450 ms pauses
+                                         Segmenter: Silero VAD, cuts phrases at 250-700 ms pauses (adaptive)
                                                      │  queue (oldest phrases dropped if > 2 waiting)
                                          translate thread: Whisper (whisper.cpp q8_0, CPU)
                                            1. encoder window sized to the phrase (audio_ctx), not 30 s
@@ -28,7 +28,7 @@ Everything lives in `translator.py` today, with settings in `config.json`.
 
 | Step | Time | Why |
 |---|---|---|
-| Waiting for the pause that ends the phrase | 0.45 s | `vad_silence_ms` |
+| Waiting for the pause that ends the phrase | 0.24 s typical, 0.45 s when unsure | `vad_adaptive`, `vad_*silence_ms` (see `scripts/endpoint_benchmark.py`) |
 | Whisper encoder | ~1.1 s | **Always processes a fixed 30 s window**, even for a 2 s phrase |
 | Language detection | ~0.05 s | reuses the encoder output |
 | Decoder (translation) | ~0.3 s | proportional to sentence length |
