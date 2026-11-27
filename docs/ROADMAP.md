@@ -56,7 +56,8 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
 5. **Gaming vocabulary**: per-game hint prompts (agent, map and weapon names) passed to Whisper as
    `initial_prompt` to fix things like "hama" → the actual agent name.
 6. **Optional 2-stage translation**: Whisper transcribes in the source language, then Opus-MT
-   translates. Better quality for some language pairs.
+   translates. Better quality for some language pairs. On for Chinese; 14 more languages opt-in
+   (`text_translation`), to be turned on as benchmarks justify.
 
 **Exit criteria:** first partial text ≤ 0.6 s after speech starts; spoken translation starts
 ≤ 1.5 s after speech ends.
