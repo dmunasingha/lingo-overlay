@@ -59,6 +59,9 @@ CONFIG_DEFAULTS = {
     "whispercpp_quant": "q8_0",
     "whispercpp_min_ctx": 256,
     "min_language_prob": 0.5,
+    "stream_partials": False,
+    "stream_first_ms": 400,
+    "stream_interval_ms": 500,
 }
 
 
@@ -195,12 +198,19 @@ class Segmenter:
         Short fragments (under ``vad_fragment_ms`` of speech) are held for up to
         ``vad_merge_gap_ms`` after they end; if speech resumes in that window, the fragment
         and the new speech become one phrase.
+
+    Streaming partials (``partial_q`` given): while a phrase is still open, the audio so far
+    is put on ``partial_q`` as ``(phrase_id, audio)`` after ``stream_first_ms`` and then every
+    ``stream_interval_ms``. When a phrase is finished (emitted or dropped), ``(phrase_id, None)``
+    goes on ``partial_q`` *before* the final phrase goes on ``out_q``. A held fragment that merges
+    with the next speech keeps its phrase id.
     """
 
     TAIL = 3  # frames (~90 ms) that make up the "end of speech" energy window
 
-    def __init__(self, cfg, out_q, detector=None):
+    def __init__(self, cfg, out_q, detector=None, partial_q=None):
         self.out_q = out_q
+        self.partial_q = partial_q
         self.detector = detector or make_detector(cfg)
         self.frame_len = self.detector.frame_len
         frame_ms = self.frame_len * 1000 / TARGET_SR
@@ -221,6 +231,8 @@ class Segmenter:
         self.fragment_frames = round(cfg.get("vad_fragment_ms", 800) / frame_ms)
         self.fall_db = cfg.get("vad_fall_db", 3.0)  # tail this much below the frames before it
         self.peak_db = cfg.get("vad_peak_db", 3.0)  # tail within this much of the peak = mid-word
+        self.partial_first = frames(cfg.get("stream_first_ms", 400))
+        self.partial_every = frames(cfg.get("stream_interval_ms", 500))
 
         self.buf = np.zeros(0, dtype=np.float32)
         self.preroll = []
@@ -234,6 +246,8 @@ class Segmenter:
         self.end_kind = "fixed"
         self.pending = None  # (frames, speech_count) of a held fragment
         self.pending_age = 0
+        self.phrase_id = 0  # increments when a new (non-merged) phrase opens
+        self.active_frames = 0  # frames since the phrase opened (for partial timing)
         # Bookkeeping for logs and scripts/endpoint_benchmark.py
         self.frame_idx = 0
         self.last_emit = None  # (end_kind, merged) of the latest emitted phrase
@@ -254,6 +268,8 @@ class Segmenter:
 
     # ------------------------------------------------------------------ internals
     def _emit(self, frames, speech_count, kind):
+        if self.partial_q is not None:  # before the final, so no stale partial follows it
+            self.partial_q.put((self.phrase_id, None))
         if speech_count >= self.min_speech_frames:
             self.last_emit = (kind, self._merged)
             self.out_q.put((np.concatenate(frames), time.time()))
@@ -292,12 +308,15 @@ class Segmenter:
                 self.frames = list(self.preroll)
                 self.speech_db = []
                 self.speech_count = self.start_frames
+                self.active_frames = 0
                 if self.pending is not None:  # speech resumed soon enough: merge
                     frames, speech = self.pending
                     self.pending = None
                     self.frames = frames + self.frames
                     self.speech_count += speech
                     self._merged = True
+                else:
+                    self.phrase_id += 1
                 self.silence_count = 0
                 return
             if self.pending is not None:
@@ -318,7 +337,15 @@ class Segmenter:
             self.silence_count += 1
 
         hit_max = len(self.frames) >= self.max_frames
-        if self.silence_count >= self.need_silence or hit_max:
+        ending = self.silence_count >= self.need_silence or hit_max
+        self.active_frames += 1
+        # Partials only once there is enough speech to be worth a decode (not for clicks).
+        if (self.partial_q is not None and not ending
+                and self.speech_count >= self.min_speech_frames):
+            k = self.active_frames - self.partial_first
+            if k >= 0 and k % self.partial_every == 0:
+                self.partial_q.put((self.phrase_id, np.concatenate(self.frames)))
+        if ending:
             if (self.adaptive and not hit_max and self.merge_frames > 0
                     and self.speech_count < self.fragment_frames):
                 self.pending = (self.frames, self.speech_count)  # hold: maybe more is coming
@@ -331,10 +358,10 @@ class Segmenter:
             self.start_streak = 0
 
 
-def capture_loop(cfg, seg_q, state):
+def capture_loop(cfg, seg_q, state, partial_q=None):
     mic = open_recorder(cfg)
     sr = 48000
-    seg = Segmenter(cfg, seg_q)
+    seg = Segmenter(cfg, seg_q, partial_q=partial_q)
     log(f"Speech detector: {seg.detector.name}")
     import warnings
     warnings.filterwarnings("ignore", message="data discontinuity")
@@ -408,6 +435,72 @@ def run_whisper(model, audio, skip, skip_thr, min_lang_prob=0.0):
     if not text or text.lower() in HALLUCINATIONS:
         return lang, probs[lang], None
     return lang, probs[lang], text
+
+
+# --------------------------------------------------------------------------
+# Streaming partials: LocalAgreement-2 over re-decodes of the growing phrase
+# --------------------------------------------------------------------------
+def _word_key(w):
+    return "".join(ch for ch in w.lower() if ch.isalnum())
+
+
+def common_prefix(a, b):
+    """Number of leading words a and b share (ignoring case and punctuation)."""
+    n = 0
+    for x, y in zip(a, b, strict=False):
+        if _word_key(x) != _word_key(y):
+            break
+        n += 1
+    return n
+
+
+class LocalAgreement:
+    """Commit the word prefix that two consecutive hypotheses agree on.
+
+    This is the LocalAgreement-2 policy from ``whisper_streaming``: each re-decode of the
+    growing buffer gives a full hypothesis; words that the previous and the current hypothesis
+    share at the start are committed and never change again. The rest is tentative.
+    """
+
+    def __init__(self):
+        self.committed = []
+        self.prev = []
+
+    def update(self, text):
+        """Feed a new hypothesis. Returns (committed_text, tentative_text)."""
+        words = text.split()
+        n = len(self.committed)
+        # Only extend the commitment if the new hypothesis still starts with it.
+        if common_prefix(self.committed, words) == n:
+            agreed = common_prefix(self.prev, words)
+            if agreed > n:
+                self.committed = words[:agreed]
+            tentative = words[len(self.committed):]
+        else:
+            tentative = []  # the decoder changed its mind about committed words: keep them
+        self.prev = words
+        return " ".join(self.committed), " ".join(tentative)
+
+
+def latest_partial(partial_q, finished):
+    """Drain partial_q; return the newest (phrase_id, audio) still open, or None.
+
+    ``finished`` is a set of phrase ids that have ended (updated in place), so partials
+    queued before their phrase was finalised are dropped.
+    """
+    newest = None
+    while True:
+        try:
+            pid, audio = partial_q.get_nowait()
+        except queue.Empty:
+            break
+        if audio is None:
+            finished.add(pid)
+        else:
+            newest = (pid, audio)
+    if newest is None or newest[0] in finished:
+        return None
+    return newest
 
 
 # --------------------------------------------------------------------------
@@ -488,7 +581,7 @@ def load_lid(cfg):
         return None
 
 
-def translate_loop(cfg, seg_q, ui_q, tts_q, state):
+def translate_loop(cfg, seg_q, ui_q, tts_q, state, partial_q=None):
     log(f"Loading Whisper '{cfg['model']}' ({cfg['backend']}, {cfg['cpu_threads']} CPU threads)...")
     model = load_model(cfg)
     lid = load_lid(cfg)
@@ -498,11 +591,15 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
     skip = {s.lower() for s in cfg["skip_languages"]}
     skip_thr = cfg["skip_threshold"]
     min_lang_prob = cfg["min_language_prob"]
+    finished, trackers = set(), {}  # streaming partials: ended phrase ids, LocalAgreement per id
 
     while not state["quit"]:
-        try:
-            audio, t_end = seg_q.get(timeout=0.5)
+        try:  # finished phrases always win over partials
+            audio, t_end = seg_q.get(timeout=0.05 if partial_q is not None else 0.5)
         except queue.Empty:
+            part = latest_partial(partial_q, finished) if partial_q is not None else None
+            if part is not None and state["enabled"]:
+                decode_partial(model, part, trackers, skip, skip_thr, min_lang_prob, ui_q)
             continue
         # Keep latency low: if phrases piled up, drop the oldest ones.
         while seg_q.qsize() > 2:
@@ -528,6 +625,20 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
         ui_q.put(("sub", lang, text))
         if state["voice"]:
             tts_q.put(text)
+
+
+def decode_partial(model, part, trackers, skip, skip_thr, min_lang_prob, ui_q):
+    """Re-decode an open phrase and show its LocalAgreement result as grey live text."""
+    pid, audio = part
+    for old in [k for k in trackers if k < pid]:  # earlier phrases are over
+        del trackers[old]
+    lang, _prob, text = run_whisper(model, audio, skip, skip_thr, min_lang_prob)
+    if text is None:
+        return
+    committed, tentative = trackers.setdefault(pid, LocalAgreement()).update(text)
+    shown = f"{committed} {tentative}".strip()
+    if shown:
+        ui_q.put(("partial", lang, shown))
 
 
 # --------------------------------------------------------------------------
@@ -588,10 +699,12 @@ class Overlay:
             style | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
         )
 
-    def show(self, text, seconds=None):
+    FINAL_FG, PARTIAL_FG = "#FFFFFF", "#9A9A9A"  # white = final, grey = live / partial
+
+    def show(self, text, seconds=None, partial=False):
         if not self.cfg["overlay_enabled"]:
             return
-        self.label.config(text=text)
+        self.label.config(text=text, fg=self.PARTIAL_FG if partial else self.FINAL_FG)
         self.root.update_idletasks()
         w, h = self.label.winfo_reqwidth(), self.label.winfo_reqheight()
         sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
@@ -611,6 +724,8 @@ class Overlay:
                 msg = self.ui_q.get_nowait()
                 if msg[0] == "sub":
                     self.show(f"[{msg[1].upper()}]  {msg[2]}")
+                elif msg[0] == "partial":
+                    self.show(f"[{msg[1].upper()}]  {msg[2]}", partial=True)
                 elif msg[0] == "status":
                     self.show(msg[1], seconds=2)
         except queue.Empty:
@@ -660,14 +775,17 @@ def main():
     perf_limits.apply(cfg, log)
     state = {"enabled": True, "voice": cfg["voice_enabled"], "quit": False, "last": None}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
+    partial_q = queue.Queue() if cfg["stream_partials"] else None
 
     log(f"Hotkeys: toggle={cfg['hotkey_toggle']}  voice={cfg['hotkey_voice']}  "
         f"replay={cfg['hotkey_replay']}  quit={cfg['hotkey_quit']}")
     log(f"Skipping languages: {', '.join(cfg['skip_languages'])}")
+    if cfg["stream_partials"]:
+        log(f"Streaming partial subtitles every {cfg['stream_interval_ms']} ms (grey = live).")
 
     for target, args in (
-        (capture_loop, (cfg, seg_q, state)),
-        (translate_loop, (cfg, seg_q, ui_q, tts_q, state)),
+        (capture_loop, (cfg, seg_q, state, partial_q)),
+        (translate_loop, (cfg, seg_q, ui_q, tts_q, state, partial_q)),
         (tts_loop, (cfg, tts_q, state)),
     ):
         threading.Thread(target=target, args=args, daemon=True).start()

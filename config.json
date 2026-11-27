@@ -34,6 +34,10 @@
   "voice_rate": 200,
   "voice_volume": 0.8,
 
+  "stream_partials": false,
+  "stream_first_ms": 400,
+  "stream_interval_ms": 500,
+
   "overlay_enabled": true,
   "overlay_font_size": 20,
   "overlay_seconds": 6,
