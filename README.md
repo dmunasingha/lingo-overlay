@@ -45,14 +45,18 @@ to it. See the **[setup guide](docs/SETUP.md)** (Valorant, Discord and others).
 
 ## Performance today
 
-Measured on a Ryzen 7 7700X **with Valorant running**, from the end of speech to the subtitle appearing:
+From `scripts/benchmark.py`: 120 short clips in 10 languages, Ryzen 7 7700X, CPU only.
+Latency is measured from the end of speech to the subtitle being ready.
 
-| Model | English skipped in | Translation in | Quality |
-|---|---|---|---|
-| `small` | ~1.2 s | ~1.5 s | gist-level, mangles names and slang |
-| `medium` (default) | ~3.0 s | ~3.8 s | noticeably better |
+| Model | Backend | Latency (median) | Foreign wrongly skipped | English wrongly translated | Quality (chrF) |
+|---|---|---|---|---|---|
+| `small` (default) | whisper.cpp (default) | **1.00 s** | 2.8 % | 0 % | 48.1 |
+| `medium` | whisper.cpp | 2.15 s | 0.9 % | 0 % | 54.8 |
+| `small` | faster-whisper | 1.66 s | 0.9 % | 0 % | 50.6 |
+| `medium` | faster-whisper | 3.52 s | 0 % | 0 % | 59.9 |
 
-The goal for v0.2 is **≤ 1.0 s**. See [GOALS.md](docs/GOALS.md) and [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how.
+`medium` translates better but uses about twice the CPU and RAM. The goal for v0.2 is **≤ 1.0 s**. See [GOALS.md](docs/GOALS.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+[BENCHMARKING.md](docs/BENCHMARKING.md).
 
 ## Documentation
 

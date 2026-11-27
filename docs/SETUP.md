@@ -9,10 +9,13 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-The first run downloads the Whisper model (small ≈ 460 MB, medium ≈ 1.5 GB) into `models/`.
-If the automatic download stalls, download `config.json`, `model.bin`, `tokenizer.json` and
+The first run downloads the Whisper model (small ≈ 265 MB, medium ≈ 820 MB) into `models/ggml/`.
+If the automatic download stalls, download `ggml-<model>-q8_0.bin` from
+`https://huggingface.co/ggerganov/whisper.cpp/tree/main` into `models/ggml/`.
+
+With `"backend": "faster-whisper"`, download `config.json`, `model.bin`, `tokenizer.json` and
 `vocabulary.txt` from `https://huggingface.co/Systran/faster-whisper-<model>/tree/main` into
-`models/<model>/`. The app uses that folder directly.
+`models/<model>/` instead.
 
 ## 2. Route voice chat into the translator (recommended)
 
@@ -72,9 +75,13 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Key | Default | Meaning |
 |---|---|---|
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
-| `model` | `medium` | `small` ≈ 1.5 s, good · `medium` ≈ 3.8 s, better (CPU, 7700X) |
-| `device` | `cpu` | `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
-| `cpu_threads` | `6` | Lower to 4 if game FPS drops |
+| `min_language_prob` | `0.5` | Ignore a phrase when the language detector is less sure than this. Filters game sounds and music; 0 disables |
+| `model` | `small` | `small` ≈ 1.0 s, good, light · `medium` ≈ 2.2 s, better, about 2× the CPU and RAM (7700X) |
+| `backend` | `whisper.cpp` | `whisper.cpp` (fast, short encoder window) or `faster-whisper` (slower, slightly higher quality) |
+| `whispercpp_min_ctx` | `256` | Smallest encoder window in 20 ms frames. 128 is ~0.15 s faster but misses more phrases |
+| `device`, `compute_type` | `cpu`, `int8` | faster-whisper only. `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
+| `cpu_threads` | `4` | Threads used while translating. Lower to 2–3 if game FPS drops |
+| `low_priority` | `true` | Below-normal process priority, so the game always gets the CPU first |
 | `vad_backend` | `silero` | Speech detector. `silero` (neural, ignores game noise, breathing and keyboard clicks) or `energy` (old volume threshold, tuned with `vad_threshold_db`) |
 | `vad_speech_threshold` | `0.5` | Silero only. Raise (e.g. `0.6`) if noise still triggers, lower if quiet speakers are missed |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
@@ -91,3 +98,4 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Subtitles don't appear over the game | Switch the game to Borderless Windowed |
 | Hotkeys don't work in game | If the game runs as administrator, run `run.bat` as administrator too |
 | Translations come in seconds late | Use `"model": "small"`, check `cpu_threads`, close other heavy apps |
+| High CPU use | Route voice chat through VB-Cable (step 2). On speaker audio every game sound is checked for speech |

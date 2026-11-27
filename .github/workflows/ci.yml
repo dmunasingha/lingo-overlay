@@ -18,4 +18,17 @@ jobs:
       - name: Ruff lint
         run: ruff check .
       - name: Byte-compile
-        run: python -m compileall -q translator.py
+        run: python -m compileall -q translator.py whispercpp_backend.py scripts tests
+
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test deps
+        # Tests only cover pure-numpy code, so skip the heavy runtime deps (faster-whisper etc.).
+        run: python -m pip install -r requirements-dev.txt "numpy>=1.26"
+      - name: Pytest
+        run: python -m pytest -v
