@@ -2,6 +2,8 @@
 
 import queue
 
+SRSE_IS_SPEAKING = 2  # SpeechRunState flag in voice.Status.RunningState
+
 
 def tts_loop(cfg, tts_q, state):
     import pythoncom
@@ -14,10 +16,14 @@ def tts_loop(cfg, tts_q, state):
     SVSF_ASYNC, SVSF_PURGE = 1, 2
     while not state["quit"]:
         try:
-            text = tts_q.get(timeout=0.3)
+            # Short timeout so state["tts_speaking"] (used to duck voice chat) stays current.
+            text = tts_q.get(timeout=0.05)
         except queue.Empty:
+            state["tts_speaking"] = bool(voice.Status.RunningState & SRSE_IS_SPEAKING)
             continue
         while not tts_q.empty():  # only speak the newest line
             text = tts_q.get_nowait()
+        # Duck before speech starts so the first syllable is not masked.
+        state["tts_speaking"] = True
         # Purge = cut off anything still being spoken; new speech wins.
         voice.Speak(text, SVSF_ASYNC | SVSF_PURGE)

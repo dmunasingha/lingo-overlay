@@ -76,6 +76,14 @@ class Config(Mapping):
     voice_rate: float = 200
     voice_volume: float = 0.8
 
+    # Voice-chat passthrough (replaces Windows "Listen") and ducking while translation speaks
+    passthrough_enabled: bool = False
+    passthrough_output_device: str = ""  # "" = default speaker/headset
+    duck_enabled: bool = True
+    duck_volume: float = 0.3  # voice-chat volume while the translation speaks
+    duck_attack_ms: float = 30
+    duck_release_ms: float = 400
+
     # Overlay
     overlay_enabled: bool = True
     overlay_font_size: int = 20
@@ -116,10 +124,11 @@ class Config(Mapping):
                 e.append(f"'{name}' must be {bounds} (got {v!r})")
 
         for name in ("skip_threshold", "min_language_prob", "lid_confidence", "vad_speech_threshold",
-                     "voice_volume", "overlay_opacity"):
+                     "voice_volume", "overlay_opacity", "duck_volume"):
             rng(name, 0, 1)
         for name in ("cpu_threads", "lid_threads", "mt_threads", "whispercpp_min_ctx", "vad_merge_gap_ms",
-                     "vad_fragment_ms", "vad_fall_db", "vad_peak_db", "vad_min_speech_ms"):
+                     "vad_fragment_ms", "vad_fall_db", "vad_peak_db", "vad_min_speech_ms",
+                     "duck_attack_ms", "duck_release_ms"):
             rng(name, 0)
         for name in ("vad_silence_ms", "vad_fast_silence_ms", "vad_slow_silence_ms",
                      "vad_max_segment_s", "overlay_seconds"):

@@ -8,6 +8,7 @@ import time
 from lingo_overlay import perf_limits
 from lingo_overlay.asr import load_model
 from lingo_overlay.audio.capture import capture_loop, print_devices
+from lingo_overlay.audio.passthrough import passthrough_loop
 from lingo_overlay.config import ConfigError, load_config
 from lingo_overlay.hotkeys import setup_hotkeys
 from lingo_overlay.langid import lid_gate, load_lid
@@ -66,7 +67,8 @@ def main():
     except ConfigError as ex:
         raise SystemExit(str(ex)) from None
     perf_limits.apply(cfg, log)
-    state = {"enabled": True, "voice": cfg.voice_enabled, "quit": False, "last": None}
+    state = {"enabled": True, "voice": cfg.voice_enabled, "quit": False, "last": None,
+             "tts_speaking": False}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
 
     log(f"Hotkeys: toggle={cfg.hotkey_toggle}  voice={cfg.hotkey_voice}  "
@@ -79,6 +81,8 @@ def main():
         (tts_loop, (cfg, tts_q, state)),
     ):
         threading.Thread(target=target, args=args, daemon=True).start()
+    if cfg.passthrough_enabled:
+        threading.Thread(target=passthrough_loop, args=(cfg, state), daemon=True).start()
     setup_hotkeys(cfg, state, ui_q, tts_q)
 
     overlay = Overlay(cfg, ui_q, state)

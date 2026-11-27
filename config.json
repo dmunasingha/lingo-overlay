@@ -38,6 +38,13 @@
   "voice_rate": 200,
   "voice_volume": 0.8,
 
+  "passthrough_enabled": false,
+  "passthrough_output_device": "",
+  "duck_enabled": true,
+  "duck_volume": 0.3,
+  "duck_attack_ms": 30,
+  "duck_release_ms": 400,
+
   "overlay_enabled": true,
   "overlay_font_size": 20,
   "overlay_seconds": 6,
