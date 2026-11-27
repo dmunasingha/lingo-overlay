@@ -19,7 +19,9 @@ from pathlib import Path
 __version__ = "0.1.0"
 
 # Repo root: config.json and models/ live here (next to translator.py / run.bat).
-ROOT = Path(__file__).resolve().parent.parent
+# In the installed app (PyInstaller) that is the folder holding LingoOverlay.exe instead.
+FROZEN = bool(getattr(sys, "frozen", False))
+ROOT = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 
 
 def _add_cuda_dlls():
