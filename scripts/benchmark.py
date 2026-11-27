@@ -292,8 +292,7 @@ def main():
     engine = "cpp" if cfg["backend"] == "whisper.cpp" else cfg["device"]
     label = args.label or f"{cfg['model']}-{engine}-t{cfg['cpu_threads']}" + (
         f"-load{args.with_load}" if args.with_load else "")
-    print(f"Loading {cfg['model']} ({cfg['device']}/{cfg['compute_type']}, {cfg['cpu_threads']} threads)...",
-          flush=True)
+    print(f"Loading {cfg['model']} ({cfg['backend']}, {cfg['cpu_threads']} threads)...", flush=True)
     model = T.load_model(cfg)
     T.run_whisper(model, np.zeros(T.TARGET_SR, np.float32), skip, cfg["skip_threshold"])  # warm-up
 

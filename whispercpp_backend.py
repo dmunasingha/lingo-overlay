@@ -15,10 +15,6 @@ import numpy as np
 FULL_CTX = 1500  # 30 s of 20 ms encoder frames
 
 
-class _Abort(Exception):
-    pass
-
-
 class WhisperCppModel:
     """Same contract as translator.run_whisper: ``run(audio, skip, thr) -> (lang, prob, text|None)``."""
 
@@ -106,7 +102,7 @@ def collapse_repeats(text):
     return " ".join(out)
 
 
-MODEL_URL ="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
+MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
 
 
 def ensure_model(folder, model, quant, log=print):
