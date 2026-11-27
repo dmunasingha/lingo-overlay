@@ -24,6 +24,8 @@ from pathlib import Path
 
 import numpy as np
 
+import perf_limits
+
 HERE = Path(__file__).resolve().parent
 
 
@@ -379,6 +381,7 @@ def setup_hotkeys(cfg, state, ui_q, tts_q):
 
 def main():
     cfg = load_config()
+    perf_limits.apply(cfg, log)
     state = {"enabled": True, "voice": cfg["voice_enabled"], "quit": False, "last": None}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
 

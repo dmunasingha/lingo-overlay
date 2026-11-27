@@ -74,7 +74,9 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
 | `model` | `medium` | `small` ≈ 1.5 s, good · `medium` ≈ 3.8 s, better (CPU, 7700X) |
 | `device` | `cpu` | `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
-| `cpu_threads` | `6` | Lower to 4 if game FPS drops |
+| `cpu_threads` | `6` | Lower to 4 if game FPS drops. See [PERFORMANCE.md](PERFORMANCE.md) for a per-CPU table |
+| `process_priority` | `below_normal` | `normal`, `below_normal` or `idle`. Below-normal lets the game win every contested core |
+| `cpu_affinity` | `off` | `off`, `"last:N"` (highest N logical CPUs) or a list like `[8, 9, 10, 11]`. Only turn on if a measurement shows it helps |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
@@ -88,4 +90,5 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Console says `Input device 'CABLE Output' not found` | VB-Cable isn't installed, so the app is using all speaker audio |
 | Subtitles don't appear over the game | Switch the game to Borderless Windowed |
 | Hotkeys don't work in game | If the game runs as administrator, run `run.bat` as administrator too |
+| Game FPS drops while translating | Lower `cpu_threads`, try `"cpu_affinity": "last:4"`, and measure with [PERFORMANCE.md](PERFORMANCE.md) |
 | Translations come in seconds late | Use `"model": "small"`, check `cpu_threads`, close other heavy apps |

@@ -60,6 +60,7 @@ The goal for v0.2 is **≤ 1.0 s**. See [GOALS.md](docs/GOALS.md) and [ARCHITECT
 - [Goals](docs/GOALS.md): vision, principles, success metrics, non-goals
 - [Roadmap](docs/ROADMAP.md): phased build plan
 - [Architecture](docs/ARCHITECTURE.md): pipeline, latency breakdown, model licenses
+- [Performance](docs/PERFORMANCE.md): measuring and limiting game FPS impact
 - [Contributing](CONTRIBUTING.md): guidelines, anti-cheat rules, workflow
 
 ## License

@@ -9,6 +9,8 @@
   "device": "cpu",
   "compute_type": "int8",
   "cpu_threads": 6,
+  "process_priority": "below_normal",
+  "cpu_affinity": "off",
 
   "vad_silence_ms": 450,
   "vad_max_segment_s": 7,
