@@ -19,6 +19,13 @@ With `"backend": "faster-whisper"`, download `config.json`, `model.bin`, `tokeni
 
 ## 2. Route voice chat into the translator (recommended)
 
+> **Using Discord? Skip VB-Cable.** On Windows 10 2004 or later, set
+> `"capture_process": "Discord.exe"` in `config.json`. The translator then records only what Discord
+> plays (all of its processes), with no driver and no change to Discord's settings. Start Discord
+> before the translator. If Discord isn't running or capture fails, the console says why and the
+> translator uses `input_device` instead. Don't use this for a game's own voice chat: you'd get
+> every game sound too.
+
 Without this step the translator listens to **all** PC audio, so gunshots and music can
 trigger it. With it, it hears only voice chat.
 
@@ -52,7 +59,7 @@ trigger it. With it, it hears only voice chat.
 |---|---|
 | **Valorant** | Settings → Audio → Voice Chat → **Output Device** = `CABLE Input (VB-Audio Virtual Cable)` |
 | **Discord** | User Settings → Voice & Video → **Output Device** = `CABLE Input (VB-Audio Virtual Cable)` |
-| **CS2** | Not possible in-game (voice follows the game's output). Use Discord, or wait for per-process capture (Phase 3) |
+| **CS2** | Not possible in-game (voice follows the game's output). Use Discord (with `capture_process`, below, no cable is needed) |
 | Other games | Look for a separate *voice chat output device* setting |
 
 Leave the **input** (microphone) device unchanged.
@@ -74,6 +81,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 
 | Key | Default | Meaning |
 |---|---|---|
+| `capture_process` | `""` | App to record on its own, e.g. `"Discord.exe"` (Windows 10 2004+, no VB-Cable needed). Empty = use `input_device` |
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
 | `min_language_prob` | `0.5` | Ignore a phrase when the language detector is less sure than this. Filters game sounds and music; 0 disables |
 | `model` | `small` | `small` ≈ 1.0 s, good, light · `medium` ≈ 2.2 s, better, about 2× the CPU and RAM (7700X) |

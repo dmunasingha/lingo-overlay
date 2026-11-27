@@ -67,7 +67,7 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
 
 **Goal:** a non-technical gamer can install it in under 5 minutes.
 
-1. **Per-process audio capture** (Windows process loopback), so Discord works with no VB-Cable.
+1. ✅ **Per-process audio capture** (Windows process loopback), so Discord works with no VB-Cable.
 2. **Settings window**: device pickers, skip languages, model size, hotkeys, overlay position,
    font and opacity, all saved to config.
 3. **System-tray app** with status (listening / translating / off).

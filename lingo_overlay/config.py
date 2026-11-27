@@ -30,6 +30,7 @@ class Config(Mapping):
     # Audio input
     input_device: str = "CABLE Output"
     fallback_to_speaker_loopback: bool = True
+    capture_process: str = ""  # e.g. "Discord.exe": record only that app (Windows 10 2004+)
 
     # Language skipping
     skip_languages: list[str] = field(default_factory=lambda: ["en"])

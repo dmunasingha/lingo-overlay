@@ -1,6 +1,7 @@
 {
   "input_device": "CABLE Output",
   "fallback_to_speaker_loopback": true,
+  "capture_process": "",
 
   "skip_languages": ["en"],
   "skip_threshold": 0.25,

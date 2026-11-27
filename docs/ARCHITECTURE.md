@@ -84,7 +84,7 @@ Key ideas:
 |---|---|---|---|
 | VB-Cable + game's voice output setting | Only voice chat, clean signal, works with any game that has a voice output device setting | Extra driver install, one game setting | **Used now** |
 | Speaker loopback (all PC audio) | Zero setup | Hears game sounds too, so more false triggers | Fallback |
-| **Per-process loopback** (Windows 10 2004+ `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`) | No driver; capture only Discord.exe | Captures the whole process, so in-game voice comes mixed with game sounds | Planned, ideal for Discord |
+| **Per-process loopback** (Windows 10 2004+ `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`) | No driver; capture only Discord.exe | Captures the whole process, so in-game voice comes mixed with game sounds | **Available** (`"capture_process": "Discord.exe"`), ideal for Discord |
 
 ## Models and licenses
 
