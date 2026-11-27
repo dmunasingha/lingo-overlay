@@ -5,9 +5,11 @@ import queue
 import time
 import tkinter as tk
 
+from lingo_overlay.ui.history_window import HistoryWindow
+
 
 class Overlay:
-    def __init__(self, cfg, ui_q, state):
+    def __init__(self, cfg, ui_q, state, history=None):
         self.cfg, self.ui_q, self.state = cfg, ui_q, state
         self.root = tk.Tk()
         self.root.overrideredirect(True)
@@ -22,6 +24,7 @@ class Overlay:
         )
         self.label.pack()
         self.hide_at = 0
+        self.history_window = HistoryWindow(self.root, history) if history is not None else None
         self.root.withdraw()
         self.root.update_idletasks()
         self._click_through()
@@ -63,9 +66,13 @@ class Overlay:
                     self.show(f"[{msg[1].upper()}]  {msg[2]}")
                 elif msg[0] == "status":
                     self.show(msg[1], seconds=2)
+                elif msg[0] == "history" and self.history_window is not None:
+                    self.history_window.toggle()
         except queue.Empty:
             pass
         if self.hide_at and time.time() > self.hide_at:
             self.root.withdraw()
             self.hide_at = 0
+        if self.history_window is not None:
+            self.history_window.refresh()
         self.root.after(50, self.poll)

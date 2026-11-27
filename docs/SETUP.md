@@ -68,6 +68,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `Ctrl+Alt+T` | Translator on/off |
 | `Ctrl+Alt+V` | Spoken translation on/off |
 | `Ctrl+Alt+R` | Replay last translation |
+| `Ctrl+Alt+H` | Translation history window (last 50, with time and language; select and Ctrl+C to copy) |
 | `Ctrl+Alt+Q` | Quit |
 
 ## 4. Configure (`config.json`)
@@ -98,6 +99,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `game_glossary` | `true` | Keep VALORANT agent, weapon and map names intact in translations ("这个clo" → "this Clove", 幻影 → Phantom). The word list is `glossary/valorant.json`; fixes welcome |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
+| `history_size` | `50` | How many recent translations the history window (`Ctrl+Alt+H`) keeps. Kept in memory only, never written to disk |
 
 ## Troubleshooting
 

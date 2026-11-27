@@ -9,6 +9,7 @@ from lingo_overlay import perf_limits
 from lingo_overlay.asr import load_model
 from lingo_overlay.audio.capture import capture_loop, print_devices
 from lingo_overlay.config import ConfigError, load_config
+from lingo_overlay.history import History
 from lingo_overlay.hotkeys import setup_hotkeys
 from lingo_overlay.langid import lid_gate, load_lid
 from lingo_overlay.log import log
@@ -16,7 +17,7 @@ from lingo_overlay.tts import tts_loop
 from lingo_overlay.ui import Overlay
 
 
-def translate_loop(cfg, seg_q, ui_q, tts_q, state):
+def translate_loop(cfg, seg_q, ui_q, tts_q, state, history=None):
     log(f"Loading Whisper '{cfg.model}' ({cfg.backend}, {cfg.cpu_threads} CPU threads)...")
     model = load_model(cfg)
     lid = load_lid(cfg)
@@ -55,6 +56,8 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
             f"(took {time.time() - t0:.2f}s, {lag:.2f}s after speech ended)"
             + (f"   heard: {heard}" if heard else ""))
         state["last"] = (lang, text)
+        if history is not None:
+            history.add(lang, text)
         ui_q.put(("sub", lang, text))
         if state["voice"]:
             tts_q.put(text)
@@ -68,20 +71,21 @@ def main():
     perf_limits.apply(cfg, log)
     state = {"enabled": True, "voice": cfg.voice_enabled, "quit": False, "last": None}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
+    history = History(cfg.history_size)
 
     log(f"Hotkeys: toggle={cfg.hotkey_toggle}  voice={cfg.hotkey_voice}  "
-        f"replay={cfg.hotkey_replay}  quit={cfg.hotkey_quit}")
+        f"replay={cfg.hotkey_replay}  history={cfg.hotkey_history}  quit={cfg.hotkey_quit}")
     log(f"Skipping languages: {', '.join(cfg.skip_languages)}")
 
     for target, args in (
         (capture_loop, (cfg, seg_q, state)),
-        (translate_loop, (cfg, seg_q, ui_q, tts_q, state)),
+        (translate_loop, (cfg, seg_q, ui_q, tts_q, state, history)),
         (tts_loop, (cfg, tts_q, state)),
     ):
         threading.Thread(target=target, args=args, daemon=True).start()
     setup_hotkeys(cfg, state, ui_q, tts_q)
 
-    overlay = Overlay(cfg, ui_q, state)
+    overlay = Overlay(cfg, ui_q, state, history)
     try:
         overlay.root.mainloop()
     except KeyboardInterrupt:
