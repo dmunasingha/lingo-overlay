@@ -6,6 +6,12 @@ import time
 import tkinter as tk
 
 
+def subtitle_text(lang, text, speaker=None):
+    """Overlay line, e.g. "P2 [ES]  Push left" (the speaker label only when speaker labels are on)."""
+    tag = f"[{lang.upper()}]"
+    return f"{speaker} {tag}  {text}" if speaker else f"{tag}  {text}"
+
+
 class Overlay:
     def __init__(self, cfg, ui_q, state):
         self.cfg, self.ui_q, self.state = cfg, ui_q, state
@@ -60,7 +66,7 @@ class Overlay:
             while True:
                 msg = self.ui_q.get_nowait()
                 if msg[0] == "sub":
-                    self.show(f"[{msg[1].upper()}]  {msg[2]}")
+                    self.show(subtitle_text(*msg[1:]))
                 elif msg[0] == "status":
                     self.show(msg[1], seconds=2)
         except queue.Empty:

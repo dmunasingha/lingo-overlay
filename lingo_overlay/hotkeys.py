@@ -20,8 +20,8 @@ def setup_hotkeys(cfg, state, ui_q, tts_q):
 
     def replay():
         if state["last"]:
-            lang, text = state["last"]
-            ui_q.put(("sub", lang, text))
+            lang, text, speaker = state["last"]
+            ui_q.put(("sub", lang, text, speaker))
             tts_q.put(text)
 
     def quit_():

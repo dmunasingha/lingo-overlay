@@ -39,6 +39,13 @@ class Config(Mapping):
     lid_confidence: float = 0.5
     lid_threads: int = 2
 
+    # Speaker labels (P1, P2, ...) from voice embeddings (optional, needs requirements-lid.txt)
+    speaker_labels: bool = False
+    speaker_similarity: float = 0.5  # cosine similarity needed to count as the same voice
+    speaker_max: int = 9  # voices remembered; the least recently heard is reused after that
+    speaker_split: bool = True  # split a phrase where the voice changes
+    speaker_window_s: float = 1.5  # window used to find voice changes inside a phrase
+
     # Text translation (transcript in the original language -> English text)
     text_translation: list[str] = field(default_factory=lambda: ["zh", "yue"])  # Opus-MT languages
     chinese_asr: str = "whisper"  # "whisper" | "sensevoice" (opt-in: FunASR model licence)
@@ -115,17 +122,19 @@ class Config(Mapping):
                     bounds = f"<= {hi}"
                 e.append(f"'{name}' must be {bounds} (got {v!r})")
 
-        for name in ("skip_threshold", "min_language_prob", "lid_confidence", "vad_speech_threshold",
+        for name in ("skip_threshold", "min_language_prob", "lid_confidence", "speaker_similarity",
+                     "vad_speech_threshold",
                      "voice_volume", "overlay_opacity"):
             rng(name, 0, 1)
         for name in ("cpu_threads", "lid_threads", "mt_threads", "whispercpp_min_ctx", "vad_merge_gap_ms",
                      "vad_fragment_ms", "vad_fall_db", "vad_peak_db", "vad_min_speech_ms"):
             rng(name, 0)
         for name in ("vad_silence_ms", "vad_fast_silence_ms", "vad_slow_silence_ms",
-                     "vad_max_segment_s", "overlay_seconds"):
+                     "vad_max_segment_s", "overlay_seconds", "speaker_window_s"):
             rng(name, 0, lo_open=True)
         rng("vad_threshold_db", hi=0)
         rng("overlay_font_size", 1)
+        rng("speaker_max", 1)
         if not self.model.strip():
             e.append("'model' must not be empty (e.g. \"small\" or \"medium\")")
         if self.backend not in ("whisper.cpp", "faster-whisper"):

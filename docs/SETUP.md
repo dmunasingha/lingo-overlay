@@ -91,7 +91,12 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `vad_merge_gap_ms` | `300` | A short fragment (under 0.8 s of speech) is held this long and joined to speech that starts again in that time. `0` = off |
 | `lid_backend` | `"whisper"` | `"speechbrain"` turns on the fast language-ID gate: speech it is confident is in a skip language is dropped before Whisper runs. Needs `pip install -r requirements-lid.txt` (see that file for the small CPU-only torch). Falls back to `"whisper"` if it can't load |
 | `lid_confidence` | `0.5` | How sure the gate must be (0–1) before it drops a phrase. Anything less goes to Whisper as usual |
-| `lid_threads` | `2` | CPU threads for the gate |
+| `lid_threads` | `2` | CPU threads for the gate (and for speaker labels) |
+| `speaker_labels` | `false` | Label subtitles by voice (`P1 [ES] ...`, `P2 [ES] ...`) and split a phrase where the voice changes, so back-to-back callouts by two people become two lines. Needs `pip install -r requirements-lid.txt`; downloads a ~80 MB voice model once. Turned off with a log line if it can't load |
+| `speaker_similarity` | `0.5` | How alike two clips must sound (0–1) to be the same person. Raise it if two people share a label, lower it if one person gets several |
+| `speaker_max` | `9` | Voices remembered. After that the one heard least recently gives its label to the new voice |
+| `speaker_split` | `true` | Split a phrase at a voice change. `false` = only label whole phrases |
+| `speaker_window_s` | `1.5` | Window used to look for a voice change; phrases shorter than two windows are never split |
 | `text_translation` | `["zh", "yue"]` | Languages transcribed in the original language and translated as text with Opus-MT (better than Whisper's own translation for Chinese). `[]` = Whisper translates everything. The model (~85 MB) is downloaded and converted once |
 | `chinese_asr` | `whisper` | `sensevoice` = recognise Chinese/Cantonese speech with SenseVoice-Small instead of Whisper: far more accurate and faster (~0.15 s). Opt-in because of its licence; needs `pip install -r requirements-sensevoice.txt`, then downloads ~155 MB once |
 | `mt_threads` | `2` | CPU threads for Opus-MT and SenseVoice |

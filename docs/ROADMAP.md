@@ -51,8 +51,9 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
    sentence by sentence.
 3. **Audio ducking**: lower the original voice-chat volume while the translation speaks
    (we control the Listen path, so this needs no game hooks).
-4. **Speaker separation (basic)**: label lines by speaker (`P1`, `P2`) using voice embeddings, so
-   overlapping callouts don't merge.
+4. ✅ **Speaker separation (basic)**: label lines by speaker (`P1`, `P2`) using voice embeddings, so
+   overlapping callouts don't merge. Done as opt-in `speaker_labels`: a phrase is split where the
+   voice changes. Truly simultaneous speech (two voices in the same instant) is not separated yet.
 5. **Gaming vocabulary**: per-game hint prompts (agent, map and weapon names) passed to Whisper as
    `initial_prompt` to fix things like "hama" → the actual agent name.
 6. **Optional 2-stage translation**: Whisper transcribes in the source language, then Opus-MT
