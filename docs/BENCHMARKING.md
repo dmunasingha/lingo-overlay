@@ -79,6 +79,31 @@ What this tells us:
 - Synthetic load barely moved small (16 logical cores, so 6 + 6 threads still fit). Real games also compete for
   cache and memory bandwidth, so confirm with an in-game FPS test (#7).
 
+## 6. whisper.cpp backend (v0.2, #5)
+
+Same machine and clips. whisper.cpp q8_0 models, encoder window sized to the clip
+(`audio_ctx` = clip frames + 64, minimum 256, i.e. ≥ 5.12 s instead of a fixed 30 s).
+
+| Run | Latency p50 | p95 | Wrong-skip | Wrong-translate | VAD miss | chrF |
+|---|---|---|---|---|---|---|
+| `--backend whisper.cpp --model small` | **1.00 s** | 1.12 s | 2.8 % | 0.0 % | 0.0 % | 48.1 |
+| `--backend whisper.cpp --model medium` | 2.15 s | 2.63 s | 0.9 % | 0.0 % | 0.0 % | **54.8** |
+| `--backend whisper.cpp --model small --with-load 6` | 1.09 s | 1.21 s | 2.8 % | 0.0 % | 0.0 % | 48.1 |
+| `--backend whisper.cpp --model small --min-ctx 128` | 0.83 s | 0.94 s | 3.7 % | 0.0 % | 0.0 % | 47.5 |
+
+What changed vs the faster-whisper baseline:
+
+- **Latency: small 1.66 → 1.00 s, medium 3.52 → 2.15 s.** Inference for small went from about 1.2 s to
+  about 0.5 s; the remaining ~0.45 s is the end-of-phrase pause (#6).
+- **Quality dropped a little** (chrF −2.5 for small, −5 for medium). Two reasons: a shorter encoder window
+  sees less context, and the backend lets low-confidence translations through (a rough subtitle is more
+  useful than none). Language gating is unchanged: 0 % English wrongly translated.
+- **Short windows make Whisper loop** ("The next room is noisy." ×20). The backend caps output at
+  8 tokens per second of audio and collapses repeated sentences; without that, medium's p95 was 4.1 s.
+- `--min-ctx 128` is another 0.17 s faster but misses more subtitles, so 256 stays the default.
+- Language detection and translation each run the (short) encoder, so the encoder runs twice per
+  translated phrase. A single-pass version or the language-ID gate (#4) would save another ~0.2 s.
+
 ## Tips for fair comparisons
 
 - Close heavy apps, including the translator itself, and compare runs made on the same machine.

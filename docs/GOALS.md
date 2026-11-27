@@ -28,7 +28,7 @@ These are measured by `scripts/benchmark.py` (see [BENCHMARKING.md](BENCHMARKING
 
 | Metric | Today (v0.1) | Phase 1 target | Long-term target |
 |---|---|---|---|
-| Subtitle latency (end of speech → subtitle, median) | 1.66 s (small) / 3.52 s (medium) | **≤ 1.0 s** | ≤ 0.5 s, with partial subtitles while the person is still talking |
+| Subtitle latency (end of speech → subtitle, median) | 1.00 s (small) / 2.15 s (medium), whisper.cpp | **≤ 1.0 s** | ≤ 0.5 s, with partial subtitles while the person is still talking |
 | Spoken-translation latency (end of speech → voice starts) | n/a | ≤ 1.5 s | ≤ 1.0 s |
 | Game FPS impact while translating | not measured | ≤ 5 % | ≤ 3 % |
 | English speech wrongly translated (should be skipped) | 0.0 % (small and medium) | ≤ 5 % of phrases | ≤ 2 % |

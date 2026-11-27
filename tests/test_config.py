@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from translator import HERE, Segmenter, load_config
+from translator import CONFIG_DEFAULTS, HERE, Segmenter, load_config
 
 REQUIRED_KEYS = {
     "input_device", "fallback_to_speaker_loopback",
@@ -36,13 +36,20 @@ def test_shipped_config_builds_a_segmenter():
 
 
 def test_default_path_is_next_to_translator():
-    assert load_config() == json.loads((HERE / "config.json").read_text(encoding="utf-8"))
+    shipped = json.loads((HERE / "config.json").read_text(encoding="utf-8"))
+    assert load_config() == {**CONFIG_DEFAULTS, **shipped}
 
 
 def test_custom_path_and_utf8(tmp_path):
     p = tmp_path / "config.json"
     p.write_text(json.dumps({"input_device": "Mikrofon (Größe)"}, ensure_ascii=False), encoding="utf-8")
-    assert load_config(p) == {"input_device": "Mikrofon (Größe)"}
+    assert load_config(p) == {**CONFIG_DEFAULTS, "input_device": "Mikrofon (Größe)"}
+
+
+def test_missing_keys_get_defaults(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text("{}", encoding="utf-8")
+    assert load_config(p) == CONFIG_DEFAULTS
 
 
 def test_invalid_json_raises(tmp_path):

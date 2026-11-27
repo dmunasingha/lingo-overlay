@@ -29,8 +29,8 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
 3. **Silero VAD** replaces the energy detector, giving fewer false triggers from game noise.
 4. **Fast language gate**: SpeechBrain VoxLingua107 decides "skip / translate" in ~20 ms, so
    English speech never reaches Whisper.
-5. **whisper.cpp backend with `audio_ctx`**, so the encoder is sized to the clip instead of 30 s.
-   Expected 3–5× faster on short phrases.
+5. ✅ **whisper.cpp backend with `audio_ctx`**, so the encoder is sized to the clip instead of 30 s.
+   Result: small 1.66 → 1.00 s, medium 3.52 → 2.15 s median latency (inference about 2.4× faster).
 6. **Adaptive phrase ending**: end a phrase sooner (250 ms) when the sentence is clearly finished,
    and later when it's mid-word.
 7. **FPS impact test**: measure game FPS with and without the translator (PresentMon), and
