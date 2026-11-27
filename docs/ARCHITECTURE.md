@@ -31,6 +31,7 @@ The code lives in the `lingo_overlay` package (`translator.py` and `run.bat` rem
 | `audio/` | Capture (`capture.py`: VB-Cable or speaker loopback) and `to_16k_mono` resampling |
 | `vad/` | Per-frame detectors (`silero.py`, `energy.py`) and the `Segmenter` with adaptive phrase ending (`segmenter.py`) |
 | `langid/` | Optional SpeechBrain fast language-ID gate in front of Whisper |
+| `speakers/` | Optional speaker labels: SpeechBrain ECAPA voice embeddings, a `SpeakerTracker` that numbers voices (`P1`, `P2`), and splitting a phrase where the voice changes |
 | `asr/` | `ASRBackend` interface (`detect_language`, `translate`, shared skip decision in `run`) with the whisper.cpp and faster-whisper backends |
 | `tts/sapi.py` | Windows SAPI voice |
 | `ui/overlay.py` | Click-through subtitle overlay |
@@ -99,6 +100,7 @@ opt-in downloads only, clearly labelled.
 | Runtime | whisper.cpp (via pywhispercpp, MIT) | MIT | ✅ | default backend, shortened `audio_ctx` |
 | VAD | Silero VAD | MIT | ✅ | current (v6 ONNX, bundled with faster-whisper) |
 | Language ID | SpeechBrain `lang-id-voxlingua107-ecapa` | Apache-2.0 | ✅ | optional gate (`lid_backend`), 107 languages |
+| Speaker embeddings | SpeechBrain `spkrec-ecapa-voxceleb` | Apache-2.0 | ✅ | optional speaker labels (`speaker_labels`) |
 | Text MT (2-stage) | Opus-MT `zho-eng` (Helsinki-NLP, Tatoeba-MT) | CC-BY-4.0 | ✅ | **on for Chinese/Cantonese** (`text_translation`); attribution required; converted locally to CTranslate2 int8 |
 | ASR (Chinese) | SenseVoice-Small (FunAudioLLM) via sherpa-onnx (Apache-2.0) | FunASR Model License 1.1 | ❌ opt-in only | `"chinese_asr": "sensevoice"`; custom licence (attribution, conduct clause, self-updating terms) |
 | Text MT (optional) | MADLAD-400 | Apache-2.0 | ✅ | large; GPU or slow |
