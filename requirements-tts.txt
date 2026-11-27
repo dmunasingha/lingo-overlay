@@ -1,0 +1,7 @@
+# Optional: natural-sounding voice (config "voice_engine": "piper" or "kokoro").
+# Install only the engine you use. Both run on CPU, no torch needed.
+#
+# Piper (GPL-3.0). Each voice has its OWN license: read the voice's MODEL_CARD before using it.
+piper-tts>=1.3,<2
+# Kokoro-82M via ONNX (kokoro-onnx is MIT, the Kokoro model is Apache-2.0).
+kokoro-onnx>=0.4,<1

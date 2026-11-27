@@ -33,6 +33,12 @@
   "voice_enabled": false,
   "voice_rate": 200,
   "voice_volume": 0.8,
+  "voice_engine": "sapi",
+  "voice_output_device": "",
+  "piper_voice": "models/piper/en_US-lessac-medium.onnx",
+  "kokoro_model": "models/kokoro/kokoro-v1.0.onnx",
+  "kokoro_voices": "models/kokoro/voices-v1.0.bin",
+  "kokoro_voice": "af_heart",
 
   "overlay_enabled": true,
   "overlay_font_size": 20,
