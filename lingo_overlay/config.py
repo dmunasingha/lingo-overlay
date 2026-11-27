@@ -83,11 +83,15 @@ class Config(Mapping):
     overlay_bottom_offset: int = 160
     overlay_opacity: float = 0.85
 
+    # History window
+    history_size: int = 50
+
     # Hotkeys
     hotkey_toggle: str = "ctrl+alt+t"
     hotkey_voice: str = "ctrl+alt+v"
     hotkey_replay: str = "ctrl+alt+r"
     hotkey_quit: str = "ctrl+alt+q"
+    hotkey_history: str = "ctrl+alt+h"
 
     def __post_init__(self):
         errors = []
@@ -126,13 +130,14 @@ class Config(Mapping):
             rng(name, 0, lo_open=True)
         rng("vad_threshold_db", hi=0)
         rng("overlay_font_size", 1)
+        rng("history_size", 1)
         if not self.model.strip():
             e.append("'model' must not be empty (e.g. \"small\" or \"medium\")")
         if self.backend not in ("whisper.cpp", "faster-whisper"):
             e.append(f"'backend' must be \"whisper.cpp\" or \"faster-whisper\" (got {self.backend!r})")
         if self.device not in ("cpu", "cuda", "auto"):
             e.append(f"'device' must be \"cpu\", \"cuda\" or \"auto\" (got {self.device!r})")
-        for name in ("hotkey_toggle", "hotkey_voice", "hotkey_replay", "hotkey_quit"):
+        for name in ("hotkey_toggle", "hotkey_voice", "hotkey_replay", "hotkey_quit", "hotkey_history"):
             if not getattr(self, name).strip():
                 e.append(f"'{name}' must not be empty")
         # vad_backend, lid_backend, chinese_asr, process_priority and cpu_affinity are checked where

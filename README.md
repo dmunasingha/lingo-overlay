@@ -41,6 +41,7 @@ to it. See the **[setup guide](docs/SETUP.md)** (Valorant, Discord and others).
 | `Ctrl+Alt+T` | Translator on/off |
 | `Ctrl+Alt+V` | Spoken translation on/off |
 | `Ctrl+Alt+R` | Replay last translation |
+| `Ctrl+Alt+H` | Translation history (last 50, copyable) |
 | `Ctrl+Alt+Q` | Quit |
 
 ## Performance today

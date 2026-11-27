@@ -44,8 +44,11 @@
   "overlay_bottom_offset": 160,
   "overlay_opacity": 0.85,
 
+  "history_size": 50,
+
   "hotkey_toggle": "ctrl+alt+t",
   "hotkey_voice": "ctrl+alt+v",
   "hotkey_replay": "ctrl+alt+r",
-  "hotkey_quit": "ctrl+alt+q"
+  "hotkey_quit": "ctrl+alt+q",
+  "hotkey_history": "ctrl+alt+h"
 }

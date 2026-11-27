@@ -24,6 +24,9 @@ def setup_hotkeys(cfg, state, ui_q, tts_q):
             ui_q.put(("sub", lang, text))
             tts_q.put(text)
 
+    def history():
+        ui_q.put(("history",))
+
     def quit_():
         log("Quitting...")
         state["quit"] = True
@@ -32,3 +35,4 @@ def setup_hotkeys(cfg, state, ui_q, tts_q):
     keyboard.add_hotkey(cfg.hotkey_voice, voice)
     keyboard.add_hotkey(cfg.hotkey_replay, replay)
     keyboard.add_hotkey(cfg.hotkey_quit, quit_)
+    keyboard.add_hotkey(cfg.hotkey_history, history)
