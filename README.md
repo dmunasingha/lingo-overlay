@@ -25,6 +25,8 @@ Teammate (Spanish) ──► you hear them live, as normal
 
 ## Quick start (Windows 10/11)
 
+No Python? Use the Windows installer (see the [setup guide](docs/SETUP.md#option-a-windows-installer-no-python-needed)). From source:
+
 ```powershell
 git clone https://github.com/dmunasingha/lingo-overlay.git
 cd lingo-overlay

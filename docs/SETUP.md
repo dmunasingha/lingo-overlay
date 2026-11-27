@@ -2,6 +2,24 @@
 
 ## 1. Install
 
+### Option A: Windows installer (no Python needed)
+
+Run `LingoOverlay-Setup-<version>.exe`. It installs for your user only (no admin prompt) into
+`%LOCALAPPDATA%\Programs\Lingo Overlay`. The first start opens a setup window that:
+
+1. downloads the speech model with a progress bar (it resumes by itself if the connection stalls),
+2. checks for VB-Cable and links to its installer (step 2 below),
+3. fixes audio routing by running the bundled `audio_setup.ps1` with your headset/mic names.
+
+Only the model download is required. To open the setup window again, use the Start-menu shortcut
+*Lingo Overlay setup*, or run `LingoOverlay.exe --setup`. `config.json` sits next to the exe.
+
+To build the installer yourself: install the requirements plus `pyinstaller` and
+[Inno Setup 6](https://jrsoftware.org/isinfo.php), then run
+`powershell -ExecutionPolicy Bypass -File packaging\build.ps1`.
+
+### Option B: from source
+
 ```powershell
 git clone https://github.com/dmunasingha/lingo-overlay.git
 cd lingo-overlay
@@ -10,7 +28,9 @@ python -m venv .venv
 ```
 
 The first run downloads the Whisper model (small ≈ 265 MB, medium ≈ 820 MB) into `models/ggml/`.
-If the automatic download stalls, download `ggml-<model>-q8_0.bin` from
+Stalled downloads resume automatically (3 tries). To add a second download source, set
+`LINGO_MODEL_MIRROR` to a base URL that serves `ggml-<name>.bin` files. `python translator.py --setup`
+opens the same setup window as the installer. If the download still fails, download `ggml-<model>-q8_0.bin` from
 `https://huggingface.co/ggerganov/whisper.cpp/tree/main` into `models/ggml/`.
 
 With `"backend": "faster-whisper"`, download `config.json`, `model.bin`, `tokenizer.json` and

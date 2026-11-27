@@ -5,7 +5,7 @@ import sys
 import threading
 import time
 
-from lingo_overlay import perf_limits
+from lingo_overlay import perf_limits, setup_wizard
 from lingo_overlay.asr import load_model
 from lingo_overlay.audio.capture import capture_loop, print_devices
 from lingo_overlay.config import ConfigError, load_config
@@ -60,11 +60,13 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
             tts_q.put(text)
 
 
-def main():
+def main(argv=()):
     try:
         cfg = load_config()
     except ConfigError as ex:
         raise SystemExit(str(ex)) from None
+    if setup_wizard.needs_setup(argv):
+        setup_wizard.main_from_cli(cfg)
     perf_limits.apply(cfg, log)
     state = {"enabled": True, "voice": cfg.voice_enabled, "quit": False, "last": None}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
@@ -94,4 +96,4 @@ def cli(argv=None):
     if "--devices" in argv:
         print_devices()
         sys.exit(0)
-    main()
+    main(argv)

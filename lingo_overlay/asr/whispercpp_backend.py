@@ -168,31 +168,38 @@ def collapse_repeats(text):
 
 
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
+# Optional extra source, tried after Hugging Face: a base URL that serves ggml-<name>.bin files.
+MIRROR_ENV = "LINGO_MODEL_MIRROR"
 
 
-def ensure_model(folder, model, quant, log=print):
+def model_name(model, quant):
+    return f"{model}-{quant}" if quant else model
+
+
+def model_path(folder, model, quant):
+    return Path(folder) / f"ggml-{model_name(model, quant)}.bin"
+
+
+def model_urls(model, quant):
+    name = model_name(model, quant)
+    urls = [MODEL_URL.format(name=name)]
+    mirror = os.environ.get(MIRROR_ENV, "").strip()
+    if mirror:
+        urls.append(f"{mirror.rstrip('/')}/ggml-{name}.bin")
+    return urls
+
+
+def ensure_model(folder, model, quant, log=print, progress=None, cancel=None):
     """Return the local ggml model path, downloading it once if it's missing.
 
-    Plain HTTP download (no huggingface_hub), written to a .part file first so an
-    interrupted download is never mistaken for a complete model.
+    See ``lingo_overlay.download``: resumes after stalls and falls back to the mirror
+    in ``LINGO_MODEL_MIRROR`` if Hugging Face keeps failing.
     """
-    import urllib.request
+    from lingo_overlay.download import download, text_progress
 
-    name = f"{model}-{quant}" if quant else model
-    path = Path(folder) / f"ggml-{name}.bin"
+    path = model_path(folder, model, quant)
     if path.is_file():
         return path
-    path.parent.mkdir(parents=True, exist_ok=True)
-    url = MODEL_URL.format(name=name)
-    log(f"Model {path.name} not found - downloading once from {url}")
-    part = path.with_suffix(".part")
-    with urllib.request.urlopen(url, timeout=30) as resp, open(part, "wb") as f:
-        total, done, last = int(resp.headers.get("Content-Length", 0)), 0, 0
-        while chunk := resp.read(1 << 20):
-            f.write(chunk)
-            done += len(chunk)
-            if total and done * 10 // total > last:
-                last = done * 10 // total
-                log(f"  {last * 10}% of {total >> 20} MB")
-    os.replace(part, path)
-    return path
+    urls = model_urls(model, quant)
+    log(f"Model {path.name} not found - downloading once from {urls[0]}")
+    return download(urls, path, progress=progress or text_progress(log), log=log, cancel=cancel)
