@@ -1,7 +1,7 @@
 import numpy as np
 from helpers import SR, drain, silence, tone
 
-from translator import EnergyDetector, Segmenter
+from lingo_overlay.vad import EnergyDetector, Segmenter
 
 FRAME = EnergyDetector.frame_len  # these tests cover the energy detector's timing
 

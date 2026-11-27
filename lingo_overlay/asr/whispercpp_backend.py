@@ -12,12 +12,16 @@ from pathlib import Path
 
 import numpy as np
 
+from lingo_overlay.asr.base import ASRBackend
+
 FULL_CTX = 1500  # 30 s of 20 ms encoder frames
 MIN_SAMPLES = int(1.1 * 16000)  # whisper.cpp skips audio shorter than 1 s; pad short callouts
 
 
-class WhisperCppModel:
-    """Same contract as translator.run_whisper: ``run(audio, skip, thr) -> (lang, prob, text|None)``."""
+class WhisperCppModel(ASRBackend):
+    """whisper.cpp via pywhispercpp. ``detect_language`` sets the short encoder window first."""
+
+    name = "whisper.cpp"
 
     def __init__(self, model_path, threads, min_ctx=256, ctx_pad=64, min_prob=0.2, hallucinations=()):
         from pywhispercpp.model import Model
@@ -58,18 +62,22 @@ class WhisperCppModel:
             self.model.transcribe(audio, audio_ctx=ctx, language="en", translate=False,
                                   abort_callback=lambda: True)
 
-    def run(self, audio, skip, skip_thr, min_lang_prob=0.0):
+    @staticmethod
+    def _prepare(audio):
         audio = np.ascontiguousarray(audio, dtype=np.float32)
         if len(audio) < MIN_SAMPLES:  # whisper.cpp silently ignores input under 1 s
             audio = np.pad(audio, (0, MIN_SAMPLES - len(audio)))
-        ctx = self.audio_ctx(len(audio))
-        self._set_ctx(ctx, audio)
-        (lang, prob), probs = self.model.auto_detect_language(audio)
-        skip_p = float(sum(probs.get(code, 0.0) for code in skip))
-        # Unsure about the language usually means it isn't speech (game sounds, music).
-        if lang in skip or skip_p >= skip_thr or prob < min_lang_prob:
-            return lang, float(prob), None
+        return audio
 
+    def detect_language(self, audio):
+        audio = self._prepare(audio)
+        self._set_ctx(self.audio_ctx(len(audio)), audio)
+        _, probs = self.model.auto_detect_language(audio)
+        return probs
+
+    def translate(self, audio, lang):
+        audio = self._prepare(audio)
+        ctx = self.audio_ctx(len(audio))
         # A short audio_ctx makes Whisper prone to repeating itself until max_tokens,
         # which costs seconds. Nobody says more than ~8 tokens per second.
         max_tokens = int(len(audio) / 16000 * 8) + 12
@@ -78,12 +86,12 @@ class WhisperCppModel:
                                      extract_probability=True)
         text = collapse_repeats(" ".join(s.text.strip() for s in segs).strip())
         if not text or text.lower() in self.hallucinations:
-            return lang, float(prob), None
+            return None
         # Geometric-mean token probability. Translations score low even when correct
         # (0.25-0.5 is common), so only drop real garbage.
         if segs and np.nanmean([s.probability for s in segs]) < self.min_prob:
-            return lang, float(prob), None
-        return lang, float(prob), text
+            return None
+        return text
 
 
 def collapse_repeats(text):

@@ -2,7 +2,7 @@
 
 Takes the local Tatoeba clips (``benchmarks/clips``, from scripts/fetch_clips.py) or any folder
 of audio files, joins them into one long "voice chat" stream with realistic gaps between
-speakers, and runs the real ``translator.Segmenter`` over it with different settings.
+speakers, and runs the real ``lingo_overlay.vad.Segmenter`` over it with different settings.
 
 For every sentence (one clip) it reports:
   end wait     time from the speaker's last loud frame to the phrase being emitted
@@ -28,7 +28,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import translator as T  # noqa: E402
+from lingo_overlay.audio import TARGET_SR  # noqa: E402
+from lingo_overlay.vad import FRAME, Segmenter  # noqa: E402
 
 # Energy detector: frame indices below assume its 30 ms frames.
 BASE = {"vad_max_segment_s": 7, "vad_min_speech_ms": 400, "vad_threshold_db": -45, "vad_backend": "energy"}
@@ -45,7 +46,7 @@ SETTINGS = {
 def decode_16k_mono(path):
     import av
 
-    resampler = av.AudioResampler(format="s16", layout="mono", rate=T.TARGET_SR)
+    resampler = av.AudioResampler(format="s16", layout="mono", rate=TARGET_SR)
     chunks = []
     with av.open(str(path)) as container:
         for frame in container.decode(audio=0):
@@ -58,8 +59,8 @@ def decode_16k_mono(path):
 
 def loud_span(audio, threshold_db):
     """(first, last) 30 ms frame louder than the threshold, or None."""
-    n = len(audio) // T.FRAME
-    frames = audio[: n * T.FRAME].reshape(n, T.FRAME)
+    n = len(audio) // FRAME
+    frames = audio[: n * FRAME].reshape(n, FRAME)
     db = 20 * np.log10(np.sqrt((frames**2).mean(axis=1)) + 1e-9)
     loud = np.flatnonzero(db > threshold_db)
     return (int(loud[0]), int(loud[-1])) if len(loud) else None
@@ -74,13 +75,13 @@ def build_stream(clips, gap_range, seed, threshold_db):
         span = loud_span(audio, threshold_db)
         if span is None:
             continue
-        audio = audio[: (len(audio) // T.FRAME) * T.FRAME]
-        gap = int(rng.uniform(*gap_range) * 1000 / 30) * T.FRAME
+        audio = audio[: (len(audio) // FRAME) * FRAME]
+        gap = int(rng.uniform(*gap_range) * 1000 / 30) * FRAME
         parts += [np.zeros(gap, np.float32), audio]
-        pos += gap // T.FRAME
+        pos += gap // FRAME
         spans.append((pos + span[0], pos + span[1]))
-        pos += len(audio) // T.FRAME
-    parts.append(np.zeros(T.TARGET_SR * 2, np.float32))
+        pos += len(audio) // FRAME
+    parts.append(np.zeros(TARGET_SR * 2, np.float32))
     stream = np.concatenate(parts)
     stream += noise.normal(0, 10 ** (-70 / 20), len(stream)).astype(np.float32)  # faint hiss
     return stream, spans
@@ -96,7 +97,7 @@ class Recorder:
     def put(self, item):
         audio, _ = item
         emit = self.seg.frame_idx + 1
-        n = len(audio) // T.FRAME
+        n = len(audio) // FRAME
         # A held fragment is emitted some frames after its audio ends.
         end = emit if self.seg.last_emit[0] != "fragment" else emit - self.seg.pending_age
         self.phrases.append((end - n, end, emit))
@@ -104,7 +105,7 @@ class Recorder:
 
 def run(stream, spans, overrides):
     rec = Recorder()
-    seg = T.Segmenter({**BASE, **overrides}, rec)
+    seg = Segmenter({**BASE, **overrides}, rec)
     rec.seg = seg
     for i in range(0, len(stream), 4800):  # 100 ms blocks, as in capture_loop
         seg.feed(stream[i:i + 4800])
@@ -146,7 +147,7 @@ def main():
     random.Random(args.seed).shuffle(files)
     clips = [decode_16k_mono(p) for p in files]
     stream, spans = build_stream(clips, args.gap, args.seed, BASE["vad_threshold_db"])
-    print(f"{len(spans)} sentences, {len(stream) / T.TARGET_SR:.0f} s of audio, "
+    print(f"{len(spans)} sentences, {len(stream) / TARGET_SR:.0f} s of audio, "
           f"gaps {args.gap[0]}-{args.gap[1]} s\n")
 
     print("| Setting | End wait p50 | End wait p95 | Mean | Cut in half | Merged with previous | Missed |")
