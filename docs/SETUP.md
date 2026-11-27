@@ -89,6 +89,9 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `vad_adaptive` | `true` | Pick the pause from the speaker's energy: end sooner when a sentence trails off, wait longer when it stopped mid-word. `false` = always `vad_silence_ms` |
 | `vad_fast_silence_ms`, `vad_slow_silence_ms` | `250`, `700` | The adaptive "trailed off" and "cut mid-word" pauses |
 | `vad_merge_gap_ms` | `300` | A short fragment (under 0.8 s of speech) is held this long and joined to speech that starts again in that time. `0` = off |
+| `lid_backend` | `"whisper"` | `"speechbrain"` turns on the fast language-ID gate: speech it is confident is in a skip language is dropped before Whisper runs. Needs `pip install -r requirements-lid.txt` (see that file for the small CPU-only torch). Falls back to `"whisper"` if it can't load |
+| `lid_confidence` | `0.5` | How sure the gate must be (0–1) before it drops a phrase. Anything less goes to Whisper as usual |
+| `lid_threads` | `2` | CPU threads for the gate |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
 
