@@ -63,11 +63,12 @@ def ensure_model(root, lang, log=print):
 class TextTranslator:
     """Translate short phrases to English with per-language Opus-MT models (loaded lazily)."""
 
-    def __init__(self, root, languages=None, threads=2, log=print):
+    def __init__(self, root, languages=None, threads=2, log=print, glossary=None):
         self.root = Path(root)
         known = set(MODELS) | set(ALIASES)
         self.languages = known if languages is None else set(languages) & known
         self.threads = threads
+        self.glossary = glossary  # glossary.Glossary: game terms -> English names
         self.log = log
         self._models = {}
         self._lock = threading.Lock()
@@ -97,9 +98,12 @@ class TextTranslator:
 
     def translate(self, text, lang):
         model, src, tgt = self._load(lang)
+        if self.glossary is not None:
+            text = self.glossary.apply(text, lang)
         tokens = src.encode(text.strip(), out_type=str)
         if not tokens:
             return ""
         res = model.translate_batch([tokens], beam_size=2, max_decoding_length=128,
                                     repetition_penalty=1.2)
-        return tgt.decode(res[0].hypotheses[0]).strip()
+        out = tgt.decode(res[0].hypotheses[0]).strip()
+        return self.glossary.repair(text, out) if self.glossary is not None else out

@@ -8,6 +8,7 @@
   "text_translation": ["zh", "yue"],
   "chinese_asr": "whisper",
   "mt_threads": 2,
+  "game_glossary": true,
   "lid_backend": "whisper",
   "lid_confidence": 0.5,
   "lid_threads": 2,

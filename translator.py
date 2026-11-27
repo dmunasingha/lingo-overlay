@@ -62,6 +62,7 @@ CONFIG_DEFAULTS = {
     "text_translation": ["zh", "yue"],
     "mt_threads": 2,
     "chinese_asr": "whisper",
+    "game_glossary": True,
 }
 
 
@@ -362,7 +363,13 @@ def load_text_translator(cfg):
         unsupported = sorted(set(langs) - set(MODELS) - set(ALIASES))
         if unsupported:
             log(f"No text-translation model for {', '.join(unsupported)}; Whisper translates those.")
-        mt = TextTranslator(HERE / "models" / "mt", langs, threads=cfg["mt_threads"], log=log)
+        glossary = None
+        if cfg["game_glossary"]:
+            from glossary import load_default
+
+            glossary = load_default(log)
+        mt = TextTranslator(HERE / "models" / "mt", langs, threads=cfg["mt_threads"], log=log,
+                            glossary=glossary)
         mt.preload()
         if mt.languages:
             log(f"Text translation (Opus-MT) for: {', '.join(sorted(mt.languages))}")

@@ -95,6 +95,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `text_translation` | `["zh", "yue"]` | Languages transcribed in the original language and translated as text with Opus-MT (better than Whisper's own translation for Chinese). `[]` = Whisper translates everything. The model (~85 MB) is downloaded and converted once |
 | `chinese_asr` | `whisper` | `sensevoice` = recognise Chinese/Cantonese speech with SenseVoice-Small instead of Whisper: far more accurate and faster (~0.15 s). Opt-in because of its licence; needs `pip install -r requirements-sensevoice.txt`, then downloads ~155 MB once |
 | `mt_threads` | `2` | CPU threads for Opus-MT and SenseVoice |
+| `game_glossary` | `true` | Keep VALORANT agent, weapon and map names intact in translations ("这个clo" → "this Clove", 幻影 → Phantom). The word list is `glossary/valorant.json`; fixes welcome |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
 
