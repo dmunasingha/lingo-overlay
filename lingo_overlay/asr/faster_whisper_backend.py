@@ -6,6 +6,7 @@ import numpy as np
 
 from lingo_overlay import ROOT
 from lingo_overlay.asr.base import ASRBackend, is_hallucination
+from lingo_overlay.asr.vocab import is_prompt_echo
 from lingo_overlay.log import log
 
 
@@ -33,14 +34,17 @@ class FasterWhisperBackend(ASRBackend):
 
     name = "faster-whisper"
 
-    def __init__(self, model):
+    def __init__(self, model, prompt=""):
         self.model = model
+        self.prompt = prompt  # game vocabulary hints (lingo_overlay.asr.vocab)
         self._last_audio = None
         self._last_enc = None
 
     @classmethod
     def from_config(cls, cfg):
-        return cls(load_model(cfg))
+        from lingo_overlay.asr.vocab import load_prompt
+
+        return cls(load_model(cfg), load_prompt(cfg.game_profile))
 
     def _encode(self, audio: np.ndarray):
         if audio is self._last_audio:
@@ -64,8 +68,9 @@ class FasterWhisperBackend(ASRBackend):
         self._last_audio = self._last_enc = None  # free the clip's encoder output
         m = self.model
         tok = Tokenizer(m.hf_tokenizer, True, task="translate", language=lang)
+        hints = tok.encode(" " + self.prompt) if self.prompt else []
         res = m.model.generate(
-            enc, [m.get_prompt(tok, [], without_timestamps=True)],
+            enc, [m.get_prompt(tok, hints, without_timestamps=True)],
             beam_size=1, max_length=200, return_scores=True, return_no_speech_prob=True,
             suppress_blank=True, suppress_tokens=get_suppressed_tokens(tok, [-1]),
         )[0]
@@ -74,6 +79,6 @@ class FasterWhisperBackend(ASRBackend):
         if res.no_speech_prob > 0.6 and avg_logprob < -0.8:
             return None
         text = tok.decode(ids).strip()
-        if is_hallucination(text):
+        if is_hallucination(text) or is_prompt_echo(text, self.prompt):
             return None
         return text

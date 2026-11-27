@@ -22,6 +22,7 @@
   "cpu_threads": 4,
   "process_priority": "below_normal",
   "cpu_affinity": "off",
+  "game_profile": "",
 
   "vad_backend": "silero",
   "vad_speech_threshold": 0.5,
