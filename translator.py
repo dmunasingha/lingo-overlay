@@ -52,9 +52,16 @@ def log(*a):
     print(time.strftime("[%H:%M:%S]"), *a, flush=True)
 
 
+CONFIG_DEFAULTS = {
+    "backend": "whisper.cpp",
+    "whispercpp_quant": "q8_0",
+    "whispercpp_min_ctx": 256,
+}
+
+
 def load_config():
     with open(HERE / "config.json", encoding="utf-8") as f:
-        return json.load(f)
+        return {**CONFIG_DEFAULTS, **json.load(f)}
 
 
 # --------------------------------------------------------------------------
@@ -169,6 +176,13 @@ def capture_loop(cfg, seg_q, state):
 # --------------------------------------------------------------------------
 def load_model(cfg):
     """Use the already-downloaded model offline; only go online if it's missing."""
+    if cfg["backend"] == "whisper.cpp":
+        from whispercpp_backend import WhisperCppModel, ensure_model
+
+        path = ensure_model(HERE / "models" / "ggml", cfg["model"], cfg["whispercpp_quant"], log)
+        return WhisperCppModel(path, cfg["cpu_threads"], min_ctx=cfg["whispercpp_min_ctx"],
+                               hallucinations=HALLUCINATIONS)
+
     from faster_whisper import WhisperModel
 
     kw = dict(device=cfg["device"], compute_type=cfg["compute_type"],
@@ -189,6 +203,9 @@ def run_whisper(model, audio, skip, skip_thr):
     Returns (lang, lang_prob, text). text is None when skipped / not speech.
     (faster-whisper's transcribe() would run the expensive encoder twice.)
     """
+    if hasattr(model, "run"):  # whisper.cpp backend
+        return model.run(audio, skip, skip_thr)
+
     from faster_whisper.audio import pad_or_trim
     from faster_whisper.tokenizer import Tokenizer
     from faster_whisper.transcribe import get_suppressed_tokens
@@ -219,7 +236,7 @@ def run_whisper(model, audio, skip, skip_thr):
 
 
 def translate_loop(cfg, seg_q, ui_q, tts_q, state):
-    log(f"Loading Whisper '{cfg['model']}' on {cfg['device']} ({cfg['compute_type']})...")
+    log(f"Loading Whisper '{cfg['model']}' ({cfg['backend']}, {cfg['cpu_threads']} CPU threads)...")
     model = load_model(cfg)
     log("Model ready. Listening for speech...")
     ui_q.put(("status", "Translator ready"))

@@ -9,10 +9,13 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-The first run downloads the Whisper model (small ≈ 460 MB, medium ≈ 1.5 GB) into `models/`.
-If the automatic download stalls, download `config.json`, `model.bin`, `tokenizer.json` and
+The first run downloads the Whisper model (small ≈ 265 MB, medium ≈ 820 MB) into `models/ggml/`.
+If the automatic download stalls, download `ggml-<model>-q8_0.bin` from
+`https://huggingface.co/ggerganov/whisper.cpp/tree/main` into `models/ggml/`.
+
+With `"backend": "faster-whisper"`, download `config.json`, `model.bin`, `tokenizer.json` and
 `vocabulary.txt` from `https://huggingface.co/Systran/faster-whisper-<model>/tree/main` into
-`models/<model>/`. The app uses that folder directly.
+`models/<model>/` instead.
 
 ## 2. Route voice chat into the translator (recommended)
 
@@ -72,8 +75,10 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Key | Default | Meaning |
 |---|---|---|
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
-| `model` | `medium` | `small` ≈ 1.5 s, good · `medium` ≈ 3.8 s, better (CPU, 7700X) |
-| `device` | `cpu` | `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
+| `model` | `medium` | `small` ≈ 1.0 s, good · `medium` ≈ 2.2 s, better (CPU, 7700X) |
+| `backend` | `whisper.cpp` | `whisper.cpp` (fast, short encoder window) or `faster-whisper` (slower, slightly higher quality) |
+| `whispercpp_min_ctx` | `256` | Smallest encoder window in 20 ms frames. 128 is ~0.15 s faster but misses more phrases |
+| `device`, `compute_type` | `cpu`, `int8` | faster-whisper only. `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
 | `cpu_threads` | `6` | Lower to 4 if game FPS drops |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
 | `voice_enabled` | `false` | Speak translations |

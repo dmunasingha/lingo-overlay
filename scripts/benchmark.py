@@ -217,7 +217,9 @@ def markdown(meta, s, rows, results):
     L = [
         f"## Benchmark: {meta['label']}",
         "",
-        f"`{meta['model']}` on `{meta['device']}/{meta['compute_type']}`, {meta['threads']} threads, "
+        f"`{meta['model']}` via {meta['backend']} "
+        f"({meta['quant'] if meta['backend'] == 'whisper.cpp' else meta['device'] + '/' + meta['compute_type']}), "
+        f"{meta['threads']} threads, "
         f"CPU load processes: {meta['with_load']}, clips: {s['clips']} "
         f"({s['foreign_clips']} foreign, {s['skip_lang_clips']} in skip languages), "
         f"skip: {', '.join(meta['skip'])}, {meta['date']}",
@@ -258,6 +260,8 @@ def main():
     ap.add_argument("--device")
     ap.add_argument("--compute-type")
     ap.add_argument("--threads", type=int)
+    ap.add_argument("--backend", choices=["faster-whisper", "whisper.cpp"])
+    ap.add_argument("--min-ctx", type=int, help="whisper.cpp minimum audio_ctx (20 ms frames)")
     ap.add_argument("--skip", help="comma-separated skip languages (default: config.json)")
     ap.add_argument("--langs", help="only these Whisper language codes, e.g. es,ru,en")
     ap.add_argument("--limit", type=int, help="max clips per language")
@@ -268,7 +272,8 @@ def main():
 
     cfg = T.load_config()
     for key, val in (("model", args.model), ("device", args.device),
-                     ("compute_type", args.compute_type), ("cpu_threads", args.threads)):
+                     ("compute_type", args.compute_type), ("cpu_threads", args.threads),
+                     ("backend", args.backend), ("whispercpp_min_ctx", args.min_ctx)):
         if val is not None:
             cfg[key] = val
     skip = {s.strip() for s in (args.skip.split(",") if args.skip else cfg["skip_languages"])}
@@ -284,7 +289,8 @@ def main():
         seen = Counter()
         clips = [c for c in clips if (seen.update([c["lang"]]) or seen[c["lang"]] <= args.limit)]
 
-    label = args.label or f"{cfg['model']}-{cfg['device']}-t{cfg['cpu_threads']}" + (
+    engine = "cpp" if cfg["backend"] == "whisper.cpp" else cfg["device"]
+    label = args.label or f"{cfg['model']}-{engine}-t{cfg['cpu_threads']}" + (
         f"-load{args.with_load}" if args.with_load else "")
     print(f"Loading {cfg['model']} ({cfg['device']}/{cfg['compute_type']}, {cfg['cpu_threads']} threads)...",
           flush=True)
@@ -312,7 +318,8 @@ def main():
                 p.join(timeout=2)
 
     s = summarize(results, skip)
-    meta = {"label": label, "model": cfg["model"], "device": cfg["device"],
+    meta = {"label": label, "backend": cfg["backend"], "quant": cfg["whispercpp_quant"],
+            "min_ctx": cfg["whispercpp_min_ctx"], "model": cfg["model"], "device": cfg["device"],
             "compute_type": cfg["compute_type"], "threads": cfg["cpu_threads"],
             "with_load": args.with_load, "skip": sorted(skip),
             "date": time.strftime("%Y-%m-%d %H:%M")}
