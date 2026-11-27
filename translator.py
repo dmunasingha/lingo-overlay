@@ -52,8 +52,8 @@ def log(*a):
     print(time.strftime("[%H:%M:%S]"), *a, flush=True)
 
 
-def load_config():
-    with open(HERE / "config.json", encoding="utf-8") as f:
+def load_config(path=None):
+    with open(path or HERE / "config.json", encoding="utf-8") as f:
         return json.load(f)
 
 
