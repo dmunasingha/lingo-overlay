@@ -104,6 +104,27 @@ What changed vs the faster-whisper baseline:
 - Language detection and translation each run the (short) encoder, so the encoder runs twice per
   translated phrase. A single-pass version or the language-ID gate (#4) would save another ~0.2 s.
 
+## 7. Two-stage translation (Opus-MT, #14)
+
+Whisper can either translate speech to English itself, or transcribe it in the original language
+and hand the text to a dedicated Opus-MT model (`text_translation` in `config.json`). Which is
+better depends on the language: for Chinese the two-stage path wins clearly, so it is on by default.
+Opus-MT models for `ar`, `de`, `es`, `fr`, `it`, `ja`, `ko`, `pl`, `pt`, `ru`, `th`, `tr`, `uk` and
+`vi` are also available but **off** until a benchmark shows they help.
+
+To compare a language, run the same clips both ways and read the per-language table:
+
+```powershell
+.\.venv\Scripts\python scripts\benchmark.py --langs es,ja,en --text-translation none --label whisper-only
+.\.venv\Scripts\python scripts\benchmark.py --langs es,ja,en --text-translation es,ja --label opus-mt
+```
+
+(`fetch_clips.py --langs ...` gets clips for languages not in the default set.) The first two-stage
+run downloads and converts each model (~290 MB download, ~85 MB on disk), so run it once before
+timing. Turn a language on only if its chrF goes up **and** the sample outputs read better, without
+pushing latency p50 over the 1.0 s target. Opus-MT itself is cheap: 30-70 ms per short phrase on
+2 threads (`mt_threads`, Ryzen 7 7700X, es and ja). Please add your results here.
+
 ## Tips for fair comparisons
 
 - Close heavy apps, including the translator itself, and compare runs made on the same machine.

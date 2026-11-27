@@ -123,6 +123,26 @@ def test_translator_aliases_cantonese_to_chinese_model():
     assert tt.supports("zh") and tt.supports("yue") and not tt.supports("xx")
 
 
+def test_model_table_is_well_formed():
+    for lang, release in mt.MODELS.items():
+        assert lang.islower() and 2 <= len(lang) <= 3
+        pair, name = release.split("/")
+        assert pair.endswith("-eng") and name.endswith(".zip")
+    assert set(mt.ALIASES.values()) <= set(mt.MODELS)
+
+
+def test_extra_languages_are_opt_in():
+    tt = mt.TextTranslator("unused", ["es", "ja", "en"])
+    assert tt.supports("es") and tt.supports("ja") and not tt.supports("en")
+    assert set(Config().text_translation) == {"zh", "yue"}  # default unchanged
+
+
+def test_opted_in_language_transcribes_then_translates():
+    m = make("es", FakeMT(("es",)), None)
+    lang, _, text = m.run(AUDIO, {"en"}, 0.25, 0.5)
+    assert m.model.transcribes[0]["translate"] is False  # Whisper only transcribes
+
+
 def test_config_defaults_and_opt_in():
     cfg = Config()
     assert cfg.text_translation == ["zh", "yue"]

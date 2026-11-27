@@ -20,9 +20,26 @@ import zipfile
 from pathlib import Path
 
 # Whisper language code -> Tatoeba-MT release (original Marian weights, CC-BY-4.0).
-# Tatoeba-test scores are from each release's model card.
+# Only Chinese is on by default (config ``text_translation``): it is the one language where
+# this path is measured to beat Whisper. The others are opt-in; check them against Whisper's
+# own translation with ``scripts/benchmark.py --text-translation`` before turning them on
+# (see docs/BENCHMARKING.md). All are transformer-align models of the same size (~85 MB int8).
 MODELS = {
-    "zh": "zho-eng/opus-2020-07-17.zip",  # BLEU 36.1, chrF 0.548
+    "zh": "zho-eng/opus-2020-07-17.zip",  # Tatoeba-test BLEU 36.1, chrF 0.548
+    "ar": "ara-eng/opus+bt-2021-04-30.zip",
+    "de": "deu-eng/opus+bt-2021-04-30.zip",
+    "es": "spa-eng/opus+bt-2021-04-30.zip",
+    "fr": "fra-eng/opus+bt-2021-04-30.zip",
+    "it": "ita-eng/opus+bt-2021-04-30.zip",
+    "ja": "jpn-eng/opus-2021-02-18.zip",
+    "ko": "kor-eng/opus-2021-02-18.zip",
+    "pl": "pol-eng/opus+bt-2021-04-30.zip",
+    "pt": "por-eng/opus+bt-2021-04-30.zip",
+    "ru": "rus-eng/opus+bt-2021-04-30.zip",
+    "th": "tha-eng/opus+bt-2021-04-30.zip",
+    "tr": "tur-eng/opus+bt-2021-04-30.zip",
+    "uk": "ukr-eng/opus+bt-2021-04-30.zip",
+    "vi": "vie-eng/opus+bt-2021-04-30.zip",
 }
 # Languages served by another language's model (the zho-eng model covers Cantonese too).
 ALIASES = {"yue": "zh"}
