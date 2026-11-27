@@ -1,6 +1,7 @@
 faster-whisper>=1.2,<2
 pywhispercpp>=1.5,<2
 ctranslate2>=4.5,<5
+sentencepiece>=0.2,<0.3
 soundcard>=0.4.4
 keyboard>=0.13.5
 pywin32>=306; sys_platform == "win32"

@@ -1,0 +1,48 @@
+{
+  "_comment": [
+    "Game word list used before text translation (see glossary.py).",
+    "english: names kept as-is; a cut-off word that uniquely starts one of them is completed ('clo' -> 'Clove').",
+    "zh: Chinese game terms replaced by their English name before translating. Longest match wins.",
+    "Corrections welcome: Chinese names follow the mainland client; check before adding."
+  ],
+  "english": [
+    "Astra", "Breach", "Brimstone", "Chamber", "Clove", "Cypher", "Deadlock", "Fade", "Gekko",
+    "Harbor", "Iso", "Jett", "KAY/O", "Killjoy", "Neon", "Omen", "Phoenix", "Raze", "Reyna",
+    "Sage", "Skye", "Sova", "Tejo", "Viper", "Vyse", "Waylay", "Yoru",
+    "Classic", "Shorty", "Frenzy", "Ghost", "Sheriff", "Stinger", "Spectre", "Bucky", "Judge",
+    "Bulldog", "Guardian", "Phantom", "Vandal", "Marshal", "Outlaw", "Operator", "Ares", "Odin",
+    "Ascent", "Bind", "Haven", "Split", "Icebox", "Breeze", "Fracture", "Pearl", "Lotus",
+    "Sunset", "Abyss",
+    "spike", "defuse", "rotate", "eco", "ult", "heaven", "hookah", "mid", "spawn"
+  ],
+  "zh": {
+    "捷风": "Jett", "不死鸟": "Phoenix", "贤者": "Sage", "猎枭": "Sova", "炼狱": "Brimstone",
+    "蝰蛇": "Viper", "雷兹": "Raze", "铁臂": "Breach", "幽影": "Omen", "芮娜": "Reyna",
+    "奇乐": "Killjoy", "斯凯": "Skye", "夜露": "Yoru", "星礈": "Astra", "尚勃勒": "Chamber",
+    "黑梦": "Fade", "海神": "Harbor", "盖可": "Gekko", "钢锁": "Deadlock", "暮蝶": "Clove",
+
+    "标配": "Classic", "短炮": "Shorty", "狂怒": "Frenzy", "鬼魅": "Ghost", "正义": "Sheriff",
+    "蜂刺": "Stinger", "骇灵": "Spectre", "雄鹿": "Bucky", "判官": "Judge", "斗牛犬": "Bulldog",
+    "戍卫": "Guardian", "幻影": "Phantom", "狂徒": "Vandal", "冥驹": "Operator", "战神": "Ares",
+    "奥丁": "Odin",
+
+    "下包": "plant the spike", "拆包": "defuse the spike", "包点": "site",
+    "大招好了": "ult is ready", "大招": "ult", "转点": "rotate", "经济局": "eco round", "全起": "full buy",
+    "思凯": "Skye",
+
+    "别起枪": "don't buy", "起枪": "buy guns", "强起": "force buy", "回防": "retake", "回点": "retake",
+    "绕后": "flank", "架枪": "hold the angle", "补枪": "trade the kill", "残血": "low HP",
+    "残局": "clutch", "对面": "the enemy",
+
+    "送五杀": "fed them an ace", "五杀": "ace", "四杀": "4 kills", "三杀": "3 kills", "双杀": "double kill",
+    "送人头": "feeding", "带飞": "carry", "躺赢": "get carried", "演员": "thrower",
+    "开挂": "cheating", "挂狗": "hacker", "菜鸡": "noob", "太菜了": "so bad", "大佬": "pro",
+    "牛逼": "awesome", "牛批": "awesome", "牛B": "awesome", "卧槽": "holy crap", "我靠": "damn",
+    "臭小孩儿": "brat", "臭小孩": "brat"
+  },
+  "zh_patterns": {
+    "6{3,}|六六六+": "nice!",
+    "2333+": "lol",
+    "[hH]{3,}": "lol"
+  }
+}

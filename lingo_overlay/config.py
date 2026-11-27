@@ -39,6 +39,12 @@ class Config(Mapping):
     lid_confidence: float = 0.5
     lid_threads: int = 2
 
+    # Text translation (transcript in the original language -> English text)
+    text_translation: list[str] = field(default_factory=lambda: ["zh", "yue"])  # Opus-MT languages
+    chinese_asr: str = "whisper"  # "whisper" | "sensevoice" (opt-in: FunASR model licence)
+    mt_threads: int = 2
+    game_glossary: bool = True  # keep VALORANT names/slang intact (glossary/valorant.json)
+
     # Whisper
     model: str = "small"
     backend: str = "whisper.cpp"  # "whisper.cpp" | "faster-whisper"
@@ -112,7 +118,7 @@ class Config(Mapping):
         for name in ("skip_threshold", "min_language_prob", "lid_confidence", "vad_speech_threshold",
                      "voice_volume", "overlay_opacity"):
             rng(name, 0, 1)
-        for name in ("cpu_threads", "lid_threads", "whispercpp_min_ctx", "vad_merge_gap_ms",
+        for name in ("cpu_threads", "lid_threads", "mt_threads", "whispercpp_min_ctx", "vad_merge_gap_ms",
                      "vad_fragment_ms", "vad_fall_db", "vad_peak_db", "vad_min_speech_ms"):
             rng(name, 0)
         for name in ("vad_silence_ms", "vad_fast_silence_ms", "vad_slow_silence_ms",
@@ -129,7 +135,7 @@ class Config(Mapping):
         for name in ("hotkey_toggle", "hotkey_voice", "hotkey_replay", "hotkey_quit"):
             if not getattr(self, name).strip():
                 e.append(f"'{name}' must not be empty")
-        # vad_backend, lid_backend, process_priority and cpu_affinity values are checked where
+        # vad_backend, lid_backend, chinese_asr, process_priority and cpu_affinity are checked where
         # they are used: an unknown value is logged and a safe default is used instead.
         return e
 

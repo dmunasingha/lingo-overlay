@@ -50,8 +50,10 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
             continue
 
         lag = time.time() - t_end
+        heard = getattr(model, "last_source", None)
         log(f"[{lang.upper()} {prob:.0%}] {text}   "
-            f"(took {time.time() - t0:.2f}s, {lag:.2f}s after speech ended)")
+            f"(took {time.time() - t0:.2f}s, {lag:.2f}s after speech ended)"
+            + (f"   heard: {heard}" if heard else ""))
         state["last"] = (lang, text)
         ui_q.put(("sub", lang, text))
         if state["voice"]:

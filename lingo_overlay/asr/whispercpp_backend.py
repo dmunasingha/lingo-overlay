@@ -8,22 +8,37 @@ rejects inputs shorter than 30 s, which is why this is a separate backend.
 
 import math
 import os
+import re
 from pathlib import Path
 
 import numpy as np
 
 from lingo_overlay.asr.base import ASRBackend
 
+# Phrases Whisper invents for silence/noise when transcribing (not translating), e.g. subtitle
+# credits from its training data. Matched as substrings of the original-language transcript.
+SOURCE_HALLUCINATIONS = (
+    "字幕", "订阅", "訂閱", "点赞", "點贊", "打赏", "明镜", "感谢观看", "感謝觀看", "谢谢观看", "謝謝觀看",
+    "Amara.org",
+)
+
 FULL_CTX = 1500  # 30 s of 20 ms encoder frames
 MIN_SAMPLES = int(1.1 * 16000)  # whisper.cpp skips audio shorter than 1 s; pad short callouts
 
 
 class WhisperCppModel(ASRBackend):
-    """whisper.cpp via pywhispercpp. ``detect_language`` sets the short encoder window first."""
+    """whisper.cpp via pywhispercpp. ``detect_language`` sets the short encoder window first.
+
+    With ``mt`` (``lingo_overlay.translate.mt.TextTranslator``), languages it supports are
+    transcribed in the original language and translated as text, which is much more accurate
+    for e.g. Chinese. ``source_asr`` (``lingo_overlay.asr.sensevoice.SenseVoiceASR``) then does
+    that transcription instead of Whisper for the languages in ``source_asr.languages``.
+    """
 
     name = "whisper.cpp"
 
-    def __init__(self, model_path, threads, min_ctx=256, ctx_pad=64, min_prob=0.2, hallucinations=()):
+    def __init__(self, model_path, threads, min_ctx=256, ctx_pad=64, min_prob=0.2, hallucinations=(),
+                 mt=None, source_asr=None):
         from pywhispercpp.model import Model
 
         if not Path(model_path).is_file():
@@ -32,6 +47,10 @@ class WhisperCppModel(ASRBackend):
         self.ctx_pad = ctx_pad
         self.min_prob = min_prob
         self.hallucinations = set(hallucinations)
+        self.mt = mt
+        self.source_asr = source_asr
+        self.last_source = None  # original-language transcript of the last MT phrase (for logs)
+        self._skip = set()
         self.model = Model(
             str(model_path),
             redirect_whispercpp_logs_to=None,
@@ -69,6 +88,11 @@ class WhisperCppModel(ASRBackend):
             audio = np.pad(audio, (0, MIN_SAMPLES - len(audio)))
         return audio
 
+    def run(self, audio, skip, skip_thr, min_lang_prob=0.0):
+        self.last_source = None
+        self._skip = set(skip)  # translate() needs it for the SenseVoice second opinion
+        return super().run(audio, skip, skip_thr, min_lang_prob)
+
     def detect_language(self, audio):
         audio = self._prepare(audio)
         self._set_ctx(self.audio_ctx(len(audio)), audio)
@@ -77,11 +101,20 @@ class WhisperCppModel(ASRBackend):
 
     def translate(self, audio, lang):
         audio = self._prepare(audio)
+        use_mt = self.mt is not None and self.mt.supports(lang)
+        if use_mt and self.source_asr is not None and lang in self.source_asr.languages:
+            source_text, heard_lang = self.source_asr.transcribe(audio)
+            # Second opinion: Whisper sometimes labels short English callouts ("Spike down")
+            # as Chinese; SenseVoice, which hears them as English, overrules it.
+            if heard_lang in self._skip:
+                return None
+            return self._translate_text(source_text, lang)
         ctx = self.audio_ctx(len(audio))
         # A short audio_ctx makes Whisper prone to repeating itself until max_tokens,
-        # which costs seconds. Nobody says more than ~8 tokens per second.
-        max_tokens = int(len(audio) / 16000 * 8) + 12
-        segs = self.model.transcribe(audio, audio_ctx=ctx, language=lang, translate=True,
+        # which costs seconds. Nobody says more than ~8 English tokens per second;
+        # transcripts in languages like Chinese need more tokens per second.
+        max_tokens = int(len(audio) / 16000 * (16 if use_mt else 8)) + 12
+        segs = self.model.transcribe(audio, audio_ctx=ctx, language=lang, translate=not use_mt,
                                      max_tokens=max_tokens, abort_callback=None,
                                      extract_probability=True)
         text = collapse_repeats(" ".join(s.text.strip() for s in segs).strip())
@@ -91,13 +124,34 @@ class WhisperCppModel(ASRBackend):
         # (0.25-0.5 is common), so only drop real garbage.
         if segs and np.nanmean([s.probability for s in segs]) < self.min_prob:
             return None
+        return self._translate_text(text, lang) if use_mt else text
+
+    def _translate_text(self, source_text, lang):
+        """Original-language transcript -> English subtitle, or None if it's not worth showing."""
+        source_text = collapse_repeats(collapse_char_loops(source_text.strip()))
+        self.last_source = source_text
+        if not source_text or any(h in source_text for h in SOURCE_HALLUCINATIONS):
+            return None
+        text = self.mt.translate(source_text, lang)
+        if not text or text.lower() in self.hallucinations:
+            return None
         return text
+
+
+_CHAR_LOOP = re.compile(r"(\S{4,40}?)\1{2,}\S{0,40}$|(\S{4,40}?)\2{2,}")
+
+
+def collapse_char_loops(text):
+    """Loops in languages written without spaces: "王反媽是單臣?王反媽是單臣?王反…" -> "王反媽是單臣?".
+
+    Only units of 4+ characters repeated 3+ times, so real repetition like 哈哈哈 stays.
+    """
+    return _CHAR_LOOP.sub(lambda m: m.group(1) or m.group(2), text)
 
 
 def collapse_repeats(text):
     """'Hi. Hi. Hi.' -> 'Hi.' Drops a sentence that repeats the one before it, and a
     trailing fragment that is just the start of that sentence again (a cut-off loop)."""
-    import re
 
     # Loops without punctuation: "the one who is the one who is the one ..." -> "the one who is"
     # (a run of 2+ words repeated 3+ times, plus a cut-off partial copy at the end).

@@ -92,6 +92,10 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `lid_backend` | `"whisper"` | `"speechbrain"` turns on the fast language-ID gate: speech it is confident is in a skip language is dropped before Whisper runs. Needs `pip install -r requirements-lid.txt` (see that file for the small CPU-only torch). Falls back to `"whisper"` if it can't load |
 | `lid_confidence` | `0.5` | How sure the gate must be (0–1) before it drops a phrase. Anything less goes to Whisper as usual |
 | `lid_threads` | `2` | CPU threads for the gate |
+| `text_translation` | `["zh", "yue"]` | Languages transcribed in the original language and translated as text with Opus-MT (better than Whisper's own translation for Chinese). `[]` = Whisper translates everything. The model (~85 MB) is downloaded and converted once |
+| `chinese_asr` | `whisper` | `sensevoice` = recognise Chinese/Cantonese speech with SenseVoice-Small instead of Whisper: far more accurate and faster (~0.15 s). Opt-in because of its licence; needs `pip install -r requirements-sensevoice.txt`, then downloads ~155 MB once |
+| `mt_threads` | `2` | CPU threads for Opus-MT and SenseVoice |
+| `game_glossary` | `true` | Keep VALORANT agent, weapon and map names intact in translations ("这个clo" → "this Clove", 幻影 → Phantom). The word list is `glossary/valorant.json`; fixes welcome |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
 
