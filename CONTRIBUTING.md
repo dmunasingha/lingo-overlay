@@ -35,8 +35,8 @@ These protect our users' game accounts. A PR that breaks them will not be merged
 
 - Never add work to the game's audio path. We only process a *copy* of voice chat.
 - Default to CPU. GPU features must be opt-in, because games keep the GPU at ~100 %.
-- Latency-sensitive changes must include before/after numbers from `scripts/benchmark.py`
-  (once it exists, see Phase 1) or the translator's console timings.
+- Latency-sensitive changes must include before/after numbers from `scripts/benchmark.py`.
+  See [docs/BENCHMARKING.md](docs/BENCHMARKING.md).
 
 ## Development setup
 

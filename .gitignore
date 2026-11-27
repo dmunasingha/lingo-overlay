@@ -17,6 +17,7 @@ models/
 *.mp3
 *.flac
 benchmarks/results/
+benchmarks/clips/
 
 # Editors / OS
 .vscode/
