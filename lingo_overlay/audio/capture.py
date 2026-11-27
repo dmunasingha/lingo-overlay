@@ -1,4 +1,4 @@
-"""Audio capture from VB-Cable (or speaker loopback as a fallback)."""
+"""Audio capture from one app (process loopback), VB-Cable, or speaker loopback as a fallback."""
 
 from lingo_overlay.audio.resample import to_16k_mono
 from lingo_overlay.log import log
@@ -25,14 +25,29 @@ def open_recorder(cfg):
     raise SystemExit("No input device available.")
 
 
-def capture_loop(cfg, seg_q, state):
+def open_stream(cfg, sr):
+    """A context manager whose ``record(n)`` returns audio: the configured app if it can be
+    captured, otherwise the input device (or speaker loopback)."""
+    if cfg.capture_process.strip():
+        from lingo_overlay.audio.process_loopback import ProcessCaptureError, open_process_recorder
+        try:
+            rec = open_process_recorder(cfg.capture_process, sr)
+            log(f"Listening to app: {cfg.capture_process} (process {rec.pid} and its children)")
+            return rec
+        except ProcessCaptureError as ex:
+            log(f"Can't capture '{cfg.capture_process}': {ex}. Using the input device instead.")
     mic = open_recorder(cfg)
+    return mic.recorder(samplerate=sr, channels=1, blocksize=4800)
+
+
+def capture_loop(cfg, seg_q, state):
     sr = 48000
-    seg = Segmenter(cfg, seg_q)
-    log(f"Speech detector: {seg.detector.name}")
     import warnings
     warnings.filterwarnings("ignore", message="data discontinuity")
-    with mic.recorder(samplerate=sr, channels=1, blocksize=4800) as rec:
+    stream = open_stream(cfg, sr)
+    seg = Segmenter(cfg, seg_q)
+    log(f"Speech detector: {seg.detector.name}")
+    with stream as rec:
         while not state["quit"]:
             data = rec.record(numframes=4800)  # 100 ms
             if state["enabled"]:
