@@ -44,6 +44,7 @@ class WhisperCppModel:
         self.hallucinations = set(hallucinations)
         self.mt = mt
         self.source_asr = source_asr
+        self.last_source = None  # original-language transcript of the last MT phrase (for logs)
         self.model = Model(
             str(model_path),
             redirect_whispercpp_logs_to=None,
@@ -75,6 +76,7 @@ class WhisperCppModel:
                                   abort_callback=lambda: True)
 
     def run(self, audio, skip, skip_thr, min_lang_prob=0.0):
+        self.last_source = None
         audio = np.ascontiguousarray(audio, dtype=np.float32)
         if len(audio) < MIN_SAMPLES:  # whisper.cpp silently ignores input under 1 s
             audio = np.pad(audio, (0, MIN_SAMPLES - len(audio)))
@@ -88,7 +90,12 @@ class WhisperCppModel:
 
         use_mt = self.mt is not None and self.mt.supports(lang)
         if use_mt and self.source_asr is not None and lang in self.source_asr.languages:
-            return lang, float(prob), self._translate_text(self.source_asr.transcribe(audio), lang)
+            source_text, heard_lang = self.source_asr.transcribe(audio)
+            # Second opinion: Whisper sometimes labels short English callouts ("Spike down")
+            # as Chinese; SenseVoice, which hears them as English, overrules it.
+            if heard_lang in skip:
+                return heard_lang, float(prob), None
+            return lang, float(prob), self._translate_text(source_text, lang)
         # A short audio_ctx makes Whisper prone to repeating itself until max_tokens,
         # which costs seconds. Nobody says more than ~8 English tokens per second;
         # transcripts in languages like Chinese need more tokens per second.
@@ -110,6 +117,7 @@ class WhisperCppModel:
     def _translate_text(self, source_text, lang):
         """Original-language transcript -> English subtitle, or None if it's not worth showing."""
         source_text = collapse_repeats(source_text.strip())
+        self.last_source = source_text
         if not source_text or any(h in source_text for h in SOURCE_HALLUCINATIONS):
             return None
         text = self.mt.translate(source_text, lang)

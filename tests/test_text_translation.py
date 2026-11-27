@@ -26,13 +26,13 @@ class FakeMT:
 class FakeASR:
     languages = {"zh", "yue"}
 
-    def __init__(self, text):
-        self.text = text
+    def __init__(self, text, lang="zh"):
+        self.text, self.lang = text, lang
         self.calls = 0
 
     def transcribe(self, audio):
         self.calls += 1
-        return self.text
+        return self.text, self.lang
 
 
 class FakeWhisper:
@@ -104,6 +104,14 @@ def test_empty_or_hallucinated_transcripts_are_dropped(heard):
     fmt = FakeMT()
     m = make("zh", fmt, FakeASR(heard))
     assert m.run(AUDIO, {"en"}, 0.25, 0.5)[2] is None
+    assert fmt.calls == []
+
+
+def test_sensevoice_overrules_whisper_on_english():
+    fmt = FakeMT()
+    m = make("zh", fmt, FakeASR("Spike down beat.", lang="en"))
+    lang, _, text = m.run(AUDIO, {"en"}, 0.25, 0.5)
+    assert (lang, text) == ("en", None)
     assert fmt.calls == []
 
 

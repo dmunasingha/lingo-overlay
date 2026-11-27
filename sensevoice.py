@@ -57,9 +57,12 @@ class SenseVoiceASR:
         self._lock = threading.Lock()
 
     def transcribe(self, audio, sr=16000):
-        """Return the transcript of a 16 kHz mono float32 phrase ('' if nothing was heard)."""
+        """Return (transcript, language) for a 16 kHz mono float32 phrase.
+
+        language is SenseVoice's own tag ("zh", "en", "yue", "ja", "ko", or "" if unknown).
+        """
         with self._lock:
             s = self._rec.create_stream()
             s.accept_waveform(sr, np.ascontiguousarray(audio, dtype=np.float32))
             self._rec.decode_stream(s)
-            return s.result.text.strip()
+            return s.result.text.strip(), s.result.lang.strip("<|>").lower()
