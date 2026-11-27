@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 import difflib
 import json
+import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -82,12 +84,17 @@ class Config(Mapping):
     overlay_seconds: float = 6
     overlay_bottom_offset: int = 160
     overlay_opacity: float = 0.85
+    overlay_outline: int = 2  # text outline width in pixels (0 = none)
+    overlay_background: bool = True  # dark box behind the text; false = outlined text only
+    overlay_monitor: int = 0  # 0 = primary, then other monitors left to right
+    overlay_anchor: list[float] | None = None  # [x, y] fractions of the monitor; None = bottom centre
 
     # Hotkeys
     hotkey_toggle: str = "ctrl+alt+t"
     hotkey_voice: str = "ctrl+alt+v"
     hotkey_replay: str = "ctrl+alt+r"
     hotkey_quit: str = "ctrl+alt+q"
+    hotkey_edit: str = "ctrl+alt+e"  # drag-to-position mode for the subtitle
 
     def __post_init__(self):
         errors = []
@@ -126,13 +133,19 @@ class Config(Mapping):
             rng(name, 0, lo_open=True)
         rng("vad_threshold_db", hi=0)
         rng("overlay_font_size", 1)
+        rng("overlay_outline", 0, 8)
+        rng("overlay_monitor", 0)
+        if self.overlay_anchor is not None and not (
+                len(self.overlay_anchor) == 2 and all(0 <= v <= 1 for v in self.overlay_anchor)):
+            e.append("'overlay_anchor' must be null or [x, y] with both between 0 and 1 "
+                     f"(got {self.overlay_anchor!r})")
         if not self.model.strip():
             e.append("'model' must not be empty (e.g. \"small\" or \"medium\")")
         if self.backend not in ("whisper.cpp", "faster-whisper"):
             e.append(f"'backend' must be \"whisper.cpp\" or \"faster-whisper\" (got {self.backend!r})")
         if self.device not in ("cpu", "cuda", "auto"):
             e.append(f"'device' must be \"cpu\", \"cuda\" or \"auto\" (got {self.device!r})")
-        for name in ("hotkey_toggle", "hotkey_voice", "hotkey_replay", "hotkey_quit"):
+        for name in ("hotkey_toggle", "hotkey_voice", "hotkey_replay", "hotkey_quit", "hotkey_edit"):
             if not getattr(self, name).strip():
                 e.append(f"'{name}' must not be empty")
         # vad_backend, lid_backend, chinese_asr, process_priority and cpu_affinity are checked where
@@ -183,6 +196,8 @@ _TYPES = {
     "float": (lambda v: _is_int(v) or isinstance(v, float), "a number"),
     "list[str]": (lambda v: isinstance(v, list) and all(isinstance(x, str) for x in v),
                   "a list of strings"),
+    "list[float] | None": (lambda v: v is None or (isinstance(v, list) and all(
+        _is_int(x) or isinstance(x, float) for x in v)), "null or a list of numbers"),
     "str | list[int] | None": (lambda v: v is None or isinstance(v, str) or isinstance(v, list),
                                "\"off\", \"last:N\" or a list of CPU numbers"),
 }
@@ -211,3 +226,37 @@ def load_config(path: Path | str | None = None) -> Config:
         return Config.from_dict(data)
     except ConfigError as ex:
         raise ConfigError(f"{path.name}: {ex}") from None
+
+
+def save_settings(path: Path | str, updates: dict[str, Any]) -> None:
+    """Write ``updates`` into config.json, keeping the rest of the file as the user wrote it.
+
+    Each setting's existing ``"key": value`` line is rewritten in place; a setting that is
+    not in the file yet is added at the end. The result is validated before it replaces
+    the file, so a bad value can never leave config.json unloadable.
+    """
+    path = Path(path)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for key, value in updates.items():
+        if key not in _FIELD_NAMES_SET:
+            raise ConfigError(f"unknown setting '{key}'")
+        pat = re.compile(r'^(\s*)"' + re.escape(key) + r'"\s*:\s*.*?(,?)\s*$')
+        for i, line in enumerate(lines):
+            m = pat.match(line)
+            if m:
+                lines[i] = f'{m.group(1)}"{key}": {json.dumps(value)}{m.group(2)}'
+                break
+        else:
+            close = max(i for i, line in enumerate(lines) if line.strip() == "}")
+            last = max(i for i in range(close) if lines[i].strip())
+            if not lines[last].rstrip().endswith(("{", ",")):
+                lines[last] = lines[last].rstrip() + ","
+            lines.insert(last + 1, f'  "{key}": {json.dumps(value)}')
+    text = "\n".join(lines) + "\n"
+    try:
+        Config.from_dict(json.loads(text))
+    except (json.JSONDecodeError, ConfigError) as ex:
+        raise ConfigError(f"refusing to write {path.name}: {ex}") from None
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)

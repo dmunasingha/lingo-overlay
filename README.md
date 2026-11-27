@@ -16,9 +16,9 @@ Teammate (Spanish) ──► you hear them live, as normal
 
 - 🎧 **Listens only to voice chat** (via VB-Cable), never delays or touches game sounds
 - 🌍 **Auto language detection** for ~99 languages, with a skip list (English skipped by default)
-- 💬 **Click-through subtitle overlay**, always on top (borderless windowed games)
+- 💬 **Click-through subtitle overlay**, always on top (borderless windowed games), outlined text, drag to any monitor
 - 🔊 **Optional spoken translation** (off by default)
-- ⌨️ **Global hotkeys**: toggle, voice, replay, quit
+- ⌨️ **Global hotkeys**: toggle, voice, replay, move subtitle, quit
 - 🖥️ **CPU-first**, so the GPU stays with your game
 - 🔒 **100 % offline**: no accounts, no API keys, no cloud, no telemetry
 - 🛡️ **Anti-cheat safe**: no injection, no hooks, no memory reading, just Windows audio APIs and a normal window
@@ -41,6 +41,7 @@ to it. See the **[setup guide](docs/SETUP.md)** (Valorant, Discord and others).
 | `Ctrl+Alt+T` | Translator on/off |
 | `Ctrl+Alt+V` | Spoken translation on/off |
 | `Ctrl+Alt+R` | Replay last translation |
+| `Ctrl+Alt+E` | Move subtitle: drag it anywhere (any monitor), press again to save |
 | `Ctrl+Alt+Q` | Quit |
 
 ## Performance today

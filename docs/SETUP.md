@@ -68,6 +68,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `Ctrl+Alt+T` | Translator on/off |
 | `Ctrl+Alt+V` | Spoken translation on/off |
 | `Ctrl+Alt+R` | Replay last translation |
+| `Ctrl+Alt+E` | Move subtitle: drag it anywhere (any monitor), press again to save |
 | `Ctrl+Alt+Q` | Quit |
 
 ## 4. Configure (`config.json`)
@@ -98,6 +99,10 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `game_glossary` | `true` | Keep VALORANT agent, weapon and map names intact in translations ("这个clo" → "this Clove", 幻影 → Phantom). The word list is `glossary/valorant.json`; fixes welcome |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
+| `overlay_outline` | `2` | Black outline around the subtitle text, in pixels (`0` = none) |
+| `overlay_background` | `true` | Dark box behind the text. `false` = outlined text only, nothing else drawn over the game |
+| `overlay_monitor`, `overlay_anchor` | `0`, `null` | Where the subtitle sits: monitor (`0` = primary) and `[x, y]` fractions of that monitor (centre, bottom edge). `null` = bottom centre. Set them by pressing `Ctrl+Alt+E` and dragging |
+| `hotkey_edit` | `ctrl+alt+e` | Hotkey for the drag-to-position mode |
 
 ## Troubleshooting
 

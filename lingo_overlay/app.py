@@ -70,7 +70,7 @@ def main():
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
 
     log(f"Hotkeys: toggle={cfg.hotkey_toggle}  voice={cfg.hotkey_voice}  "
-        f"replay={cfg.hotkey_replay}  quit={cfg.hotkey_quit}")
+        f"replay={cfg.hotkey_replay}  quit={cfg.hotkey_quit}  move subtitle={cfg.hotkey_edit}")
     log(f"Skipping languages: {', '.join(cfg.skip_languages)}")
 
     for target, args in (
