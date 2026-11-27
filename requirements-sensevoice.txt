@@ -1,0 +1,3 @@
+# Optional: SenseVoice-Small for Chinese/Cantonese speech (config "chinese_asr": "sensevoice").
+# The model weights are under the FunASR Model Open Source License Agreement 1.1; see docs/ARCHITECTURE.md.
+sherpa-onnx>=1.12,<3

@@ -85,8 +85,9 @@ opt-in downloads only, clearly labelled.
 | Runtime | faster-whisper / CTranslate2 | MIT | ✅ | alternative backend (`"backend": "faster-whisper"`) |
 | Runtime | whisper.cpp (via pywhispercpp, MIT) | MIT | ✅ | default backend, shortened `audio_ctx` |
 | VAD | Silero VAD | MIT | ✅ | current (v6 ONNX, bundled with faster-whisper) |
-| Language ID | SpeechBrain `lang-id-voxlingua107-ecapa` | Apache-2.0 | ✅ | planned, 107 languages |
-| Text MT (optional 2-stage) | Opus-MT (Helsinki-NLP) | CC-BY-4.0 | ✅ | attribution required; per-language-pair models |
+| Language ID | SpeechBrain `lang-id-voxlingua107-ecapa` | Apache-2.0 | ✅ | optional gate (`lid_backend`), 107 languages |
+| Text MT (2-stage) | Opus-MT `zho-eng` (Helsinki-NLP, Tatoeba-MT) | CC-BY-4.0 | ✅ | **on for Chinese/Cantonese** (`text_translation`); attribution required; converted locally to CTranslate2 int8 |
+| ASR (Chinese) | SenseVoice-Small (FunAudioLLM) via sherpa-onnx (Apache-2.0) | FunASR Model License 1.1 | ❌ opt-in only | `"chinese_asr": "sensevoice"`; custom licence (attribution, conduct clause, self-updating terms) |
 | Text MT (optional) | MADLAD-400 | Apache-2.0 | ✅ | large; GPU or slow |
 | Text MT (optional) | M2M100 | MIT | ✅ | |
 | Text MT | NLLB-200 | CC-BY-NC-4.0 | ❌ opt-in only | non-commercial |

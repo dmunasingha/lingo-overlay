@@ -18,7 +18,7 @@ jobs:
       - name: Ruff lint
         run: ruff check .
       - name: Byte-compile
-        run: python -m compileall -q translator.py whispercpp_backend.py perf_limits.py scripts tests tools
+        run: python -m compileall -q translator.py whispercpp_backend.py perf_limits.py mt.py sensevoice.py scripts tests tools
 
   test:
     runs-on: windows-latest

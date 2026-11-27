@@ -59,6 +59,9 @@ CONFIG_DEFAULTS = {
     "whispercpp_quant": "q8_0",
     "whispercpp_min_ctx": 256,
     "min_language_prob": 0.5,
+    "text_translation": ["zh", "yue"],
+    "mt_threads": 2,
+    "chinese_asr": "whisper",
 }
 
 
@@ -348,6 +351,46 @@ def capture_loop(cfg, seg_q, state):
 # --------------------------------------------------------------------------
 # Whisper: detect language + translate
 # --------------------------------------------------------------------------
+def load_text_translator(cfg):
+    """Opus-MT text translation for the languages in ``text_translation`` (None if off)."""
+    langs = [code.lower() for code in cfg["text_translation"]]
+    if not langs:
+        return None
+    try:
+        from mt import ALIASES, MODELS, TextTranslator
+
+        unsupported = sorted(set(langs) - set(MODELS) - set(ALIASES))
+        if unsupported:
+            log(f"No text-translation model for {', '.join(unsupported)}; Whisper translates those.")
+        mt = TextTranslator(HERE / "models" / "mt", langs, threads=cfg["mt_threads"], log=log)
+        mt.preload()
+        if mt.languages:
+            log(f"Text translation (Opus-MT) for: {', '.join(sorted(mt.languages))}")
+        return mt
+    except Exception as e:  # missing sentencepiece, download failed, ...: keep working
+        log(f"Text translation unavailable ({e}); Whisper translates everything.")
+        return None
+
+
+def load_source_asr(cfg):
+    """SenseVoice for Chinese/Cantonese transcription when ``chinese_asr`` is "sensevoice"."""
+    choice = str(cfg["chinese_asr"]).lower()
+    if choice == "whisper":
+        return None
+    if choice != "sensevoice":
+        log(f"Unknown chinese_asr '{choice}' - using Whisper.")
+        return None
+    try:
+        from sensevoice import SenseVoiceASR
+
+        asr = SenseVoiceASR(HERE / "models" / "asr", threads=cfg["mt_threads"], log=log)
+        log("Chinese speech recognition: SenseVoice-Small (FunAudioLLM, FunASR model license)")
+        return asr
+    except Exception as e:  # sherpa-onnx missing, download failed, ...: keep working
+        log(f"SenseVoice unavailable ({e}); Whisper transcribes Chinese.")
+        return None
+
+
 def load_model(cfg):
     """Use the already-downloaded model offline; only go online if it's missing."""
     if cfg["backend"] == "whisper.cpp":
@@ -355,7 +398,8 @@ def load_model(cfg):
 
         path = ensure_model(HERE / "models" / "ggml", cfg["model"], cfg["whispercpp_quant"], log)
         return WhisperCppModel(path, cfg["cpu_threads"], min_ctx=cfg["whispercpp_min_ctx"],
-                               hallucinations=HALLUCINATIONS)
+                               hallucinations=HALLUCINATIONS, mt=(mt := load_text_translator(cfg)),
+                               source_asr=load_source_asr(cfg) if mt else None)
 
     from faster_whisper import WhisperModel
 

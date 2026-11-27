@@ -222,7 +222,8 @@ def markdown(meta, s, rows, results):
         f"{meta['threads']} threads, "
         f"CPU load processes: {meta['with_load']}, clips: {s['clips']} "
         f"({s['foreign_clips']} foreign, {s['skip_lang_clips']} in skip languages), "
-        f"skip: {', '.join(meta['skip'])}, {meta['date']}",
+        f"skip: {', '.join(meta['skip'])}, text MT: {', '.join(meta['text_translation']) or 'off'}, "
+        f"Chinese ASR: {meta['chinese_asr']}, {meta['date']}",
         "",
         "| Metric | Value | Phase 1 target |",
         "|---|---|---|",
@@ -262,6 +263,8 @@ def main():
     ap.add_argument("--threads", type=int)
     ap.add_argument("--backend", choices=["faster-whisper", "whisper.cpp"])
     ap.add_argument("--min-ctx", type=int, help="whisper.cpp minimum audio_ctx (20 ms frames)")
+    ap.add_argument("--chinese-asr", choices=["whisper", "sensevoice"])
+    ap.add_argument("--text-translation", help="comma-separated languages for Opus-MT, or 'none'")
     ap.add_argument("--skip", help="comma-separated skip languages (default: config.json)")
     ap.add_argument("--langs", help="only these Whisper language codes, e.g. es,ru,en")
     ap.add_argument("--limit", type=int, help="max clips per language")
@@ -273,9 +276,12 @@ def main():
     cfg = T.load_config()
     for key, val in (("model", args.model), ("device", args.device),
                      ("compute_type", args.compute_type), ("cpu_threads", args.threads),
-                     ("backend", args.backend), ("whispercpp_min_ctx", args.min_ctx)):
+                     ("backend", args.backend), ("whispercpp_min_ctx", args.min_ctx),
+                     ("chinese_asr", args.chinese_asr)):
         if val is not None:
             cfg[key] = val
+    if args.text_translation is not None:
+        cfg["text_translation"] = [] if args.text_translation == "none" else args.text_translation.split(",")
     skip = {s.strip() for s in (args.skip.split(",") if args.skip else cfg["skip_languages"])}
 
     manifest_path = Path(args.clips) / "manifest.json"
@@ -318,7 +324,8 @@ def main():
 
     s = summarize(results, skip)
     meta = {"label": label, "backend": cfg["backend"], "quant": cfg["whispercpp_quant"],
-            "min_ctx": cfg["whispercpp_min_ctx"], "model": cfg["model"], "device": cfg["device"],
+            "min_ctx": cfg["whispercpp_min_ctx"], "chinese_asr": cfg["chinese_asr"],
+            "text_translation": cfg["text_translation"], "model": cfg["model"], "device": cfg["device"],
             "compute_type": cfg["compute_type"], "threads": cfg["cpu_threads"],
             "with_load": args.with_load, "skip": sorted(skip),
             "date": time.strftime("%Y-%m-%d %H:%M")}
