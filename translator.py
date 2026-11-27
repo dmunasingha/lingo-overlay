@@ -57,6 +57,7 @@ CONFIG_DEFAULTS = {
     "whispercpp_quant": "q8_0",
     "whispercpp_min_ctx": 256,
     "min_language_prob": 0.5,
+    "low_priority": True,
 }
 
 
@@ -397,8 +398,24 @@ def setup_hotkeys(cfg, state, ui_q, tts_q):
     keyboard.add_hotkey(cfg["hotkey_quit"], quit_)
 
 
+def lower_priority():
+    """Below-normal process priority: Windows always serves the game first, and the
+    translator only uses CPU time the game leaves over. Its threads inherit this."""
+    BELOW_NORMAL_PRIORITY_CLASS = 0x4000
+    k32 = ctypes.windll.kernel32
+    # Declare HANDLE as pointer-sized, or ctypes truncates it to 32 bits and the call fails.
+    k32.GetCurrentProcess.restype = ctypes.c_void_p
+    k32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    if k32.SetPriorityClass(k32.GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS):
+        log("Running at below-normal priority (game gets the CPU first)")
+    else:
+        log(f"Could not lower process priority (error {k32.GetLastError()})")
+
+
 def main():
     cfg = load_config()
+    if cfg["low_priority"]:
+        lower_priority()
     state = {"enabled": True, "voice": cfg["voice_enabled"], "quit": False, "last": None}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
 

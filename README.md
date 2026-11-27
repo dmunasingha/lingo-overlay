@@ -50,12 +50,12 @@ Latency is measured from the end of speech to the subtitle being ready.
 
 | Model | Backend | Latency (median) | Foreign wrongly skipped | English wrongly translated | Quality (chrF) |
 |---|---|---|---|---|---|
-| `small` | whisper.cpp | **1.00 s** | 2.8 % | 0 % | 48.1 |
-| `medium` (default) | whisper.cpp (default) | 2.15 s | 0.9 % | 0 % | 54.8 |
+| `small` (default) | whisper.cpp (default) | **1.00 s** | 2.8 % | 0 % | 48.1 |
+| `medium` | whisper.cpp | 2.15 s | 0.9 % | 0 % | 54.8 |
 | `small` | faster-whisper | 1.66 s | 0.9 % | 0 % | 50.6 |
 | `medium` | faster-whisper | 3.52 s | 0 % | 0 % | 59.9 |
 
-For the fastest subtitles set `"model": "small"`. The goal for v0.2 is **≤ 1.0 s**. See [GOALS.md](docs/GOALS.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+`medium` translates better but uses about twice the CPU and RAM. The goal for v0.2 is **≤ 1.0 s**. See [GOALS.md](docs/GOALS.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [BENCHMARKING.md](docs/BENCHMARKING.md).
 
 ## Documentation

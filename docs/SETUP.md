@@ -76,11 +76,12 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 |---|---|---|
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
 | `min_language_prob` | `0.5` | Ignore a phrase when the language detector is less sure than this. Filters game sounds and music; 0 disables |
-| `model` | `medium` | `small` ≈ 1.0 s, good · `medium` ≈ 2.2 s, better (CPU, 7700X) |
+| `model` | `small` | `small` ≈ 1.0 s, good, light · `medium` ≈ 2.2 s, better, about 2× the CPU and RAM (7700X) |
 | `backend` | `whisper.cpp` | `whisper.cpp` (fast, short encoder window) or `faster-whisper` (slower, slightly higher quality) |
 | `whispercpp_min_ctx` | `256` | Smallest encoder window in 20 ms frames. 128 is ~0.15 s faster but misses more phrases |
 | `device`, `compute_type` | `cpu`, `int8` | faster-whisper only. `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
-| `cpu_threads` | `6` | Lower to 4 if game FPS drops |
+| `cpu_threads` | `4` | Threads used while translating. Lower to 2–3 if game FPS drops |
+| `low_priority` | `true` | Below-normal process priority, so the game always gets the CPU first |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
@@ -95,3 +96,4 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Subtitles don't appear over the game | Switch the game to Borderless Windowed |
 | Hotkeys don't work in game | If the game runs as administrator, run `run.bat` as administrator too |
 | Translations come in seconds late | Use `"model": "small"`, check `cpu_threads`, close other heavy apps |
+| High CPU use | Route voice chat through VB-Cable (step 2). On speaker audio every game sound is checked for speech |

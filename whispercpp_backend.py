@@ -92,6 +92,11 @@ def collapse_repeats(text):
     trailing fragment that is just the start of that sentence again (a cut-off loop)."""
     import re
 
+    # Loops without punctuation: "the one who is the one who is the one ..." -> "the one who is"
+    # (a run of 2+ words repeated 3+ times, plus a cut-off partial copy at the end).
+    text = re.sub(r"\b((?:\S+\s+){1,11}?\S+?)(?:[\s,]+\1\b){2,}(?:[\s,]+\S+){0,11}?$", r"\1", text)
+    text = re.sub(r"\b((?:\S+\s+){1,11}?\S+?)(?:[\s,]+\1\b){2,}", r"\1", text)
+
     parts = [p for p in re.split(r"(?<=[.!?])\s+", text) if p]
     out = []
     for p in parts:
