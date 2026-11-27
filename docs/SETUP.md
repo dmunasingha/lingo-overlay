@@ -93,7 +93,39 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `lid_confidence` | `0.5` | How sure the gate must be (0–1) before it drops a phrase. Anything less goes to Whisper as usual |
 | `lid_threads` | `2` | CPU threads for the gate |
 | `voice_enabled` | `false` | Speak translations |
+| `voice_engine` | `"sapi"` | `"sapi"` (built-in Windows voice, robotic), `"piper"` or `"kokoro"` (natural, see below). Falls back to `"sapi"` if the engine can't load |
+| `voice_output_device` | `""` | Part of the speaker name the voice plays on (e.g. `"HyperX"`). `""` = default speaker. Piper/Kokoro only |
+| `piper_voice` | `models/piper/en_US-lessac-medium.onnx` | Piper voice file. The matching `.onnx.json` must be next to it |
+| `kokoro_model`, `kokoro_voices`, `kokoro_voice` | `models/kokoro/...`, `af_heart` | Kokoro model files and voice name |
+| `voice_rate`, `voice_volume` | `200`, `0.8` | Speed (175 = normal) and loudness (0–1) |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
+
+### Natural voice (Piper / Kokoro)
+
+The built-in Windows voice is robotic. For a natural voice, install one neural engine
+(both run on the CPU and are streamed sentence by sentence; a new subtitle cuts off the old one):
+
+```powershell
+pip install -r requirements-tts.txt
+```
+
+- **Piper** (fast, many voices and languages). Download a voice into `models/piper` (it saves to the current folder):
+
+  ```powershell
+  mkdir models/piper; cd models/piper
+  python -m piper.download_voices en_US-lessac-medium
+  cd ../..
+  ```
+
+  Each Piper voice has its own license. Read its `MODEL_CARD` on
+  [huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) before using it.
+  Then set `"voice_engine": "piper"`.
+
+- **Kokoro-82M** (best English quality, a bit slower). Download `kokoro-v1.0.onnx` and
+  `voices-v1.0.bin` from the [kokoro-onnx releases](https://github.com/thewh1teagle/kokoro-onnx/releases)
+  into `models/kokoro`, then set `"voice_engine": "kokoro"`.
+
+Turn the voice on with `"voice_enabled": true` or the voice hotkey (`ctrl+alt+v`).
 
 ## Troubleshooting
 

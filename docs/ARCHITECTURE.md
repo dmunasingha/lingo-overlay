@@ -93,7 +93,7 @@ opt-in downloads only, clearly labelled.
 | Speech-to-speech | SeamlessM4T v2 / SeamlessStreaming | CC-BY-NC-4.0 | ❌ opt-in only | non-commercial |
 | TTS | Piper (`piper1-gpl`) | GPL-3.0 | ✅ | fast on CPU; **each voice has its own license, so check it** |
 | TTS | Kokoro-82M | Apache-2.0 | ✅ | high-quality English |
-| TTS | Windows SAPI voices | built into Windows | ✅ | current fallback, robotic |
+| TTS | Windows SAPI voices | built into Windows | ✅ | default and fallback, robotic |
 
 ## Planned code layout (Phase 1 refactor)
 
