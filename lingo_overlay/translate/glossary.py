@@ -12,6 +12,8 @@ import json
 import re
 from pathlib import Path
 
+from lingo_overlay import ROOT
+
 LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z/']*")
 
 
@@ -91,7 +93,7 @@ def _distance(a, b):
 
 
 def load_default(log=print):
-    path = Path(__file__).resolve().parent / "glossary" / "valorant.json"
+    path = ROOT / "glossary" / "valorant.json"
     try:
         return Glossary.load(path)
     except (OSError, ValueError) as e:

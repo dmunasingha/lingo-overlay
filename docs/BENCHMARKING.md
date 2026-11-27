@@ -33,7 +33,7 @@ Results are printed as markdown and saved to `benchmarks/results/<time>_<label>.
 
 ## 3. How it works
 
-Each clip runs through the **real app code** (`Segmenter` and `run_whisper` from `translator.py`),
+Each clip runs through the **real app code** (`lingo_overlay.vad.Segmenter` and `ASRBackend.run` from `lingo_overlay.asr`),
 simulating real-time arrival:
 
 1. The clip is padded with 0.5 s of silence before and 1.5 s after, then fed frame by frame to the Segmenter.

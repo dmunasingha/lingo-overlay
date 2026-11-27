@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from translator import TARGET_SR, to_16k_mono
+from lingo_overlay.audio import TARGET_SR, to_16k_mono
 
 
 def sine(freq, sr, seconds=1.0):

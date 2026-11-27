@@ -1,6 +1,6 @@
 """Benchmark the translation pipeline: latency, skip accuracy, translation quality, CPU use.
 
-Every clip goes through the REAL pipeline code from translator.py (Segmenter + run_whisper),
+Every clip goes through the REAL pipeline code from lingo_overlay (Segmenter + ASRBackend.run),
 with real-time arrival simulated:
 
   * the clip is padded with silence and fed to the Segmenter frame by frame;
@@ -39,7 +39,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import translator as T  # noqa: E402
+from lingo_overlay.asr import load_model  # noqa: E402
+from lingo_overlay.audio import TARGET_SR  # noqa: E402
+from lingo_overlay.config import load_config  # noqa: E402
+from lingo_overlay.vad import FRAME, Segmenter  # noqa: E402
 
 PAD_BEFORE_S = 0.5
 PAD_AFTER_S = 1.5
@@ -81,7 +84,7 @@ def decode_16k_mono(path):
     """
     import av
 
-    resampler = av.AudioResampler(format="s16", layout="mono", rate=T.TARGET_SR)
+    resampler = av.AudioResampler(format="s16", layout="mono", rate=TARGET_SR)
     chunks = []
     with av.open(str(path)) as container:
         for frame in container.decode(audio=0):
@@ -113,31 +116,31 @@ def start_load(n):
 # --------------------------------------------------------------------------- pipeline sim
 def speech_end_s(audio, threshold_db):
     """Time (s) of the last 30 ms frame louder than the VAD threshold."""
-    n = len(audio) // T.FRAME
+    n = len(audio) // FRAME
     if n == 0:
         return 0.0
-    frames = audio[: n * T.FRAME].reshape(n, T.FRAME)
+    frames = audio[: n * FRAME].reshape(n, FRAME)
     db = 20 * np.log10(np.sqrt((frames**2).mean(axis=1)) + 1e-9)
     loud = np.nonzero(db > threshold_db)[0]
-    return float((loud[-1] + 1) * T.FRAME / T.TARGET_SR) if len(loud) else 0.0
+    return float((loud[-1] + 1) * FRAME / TARGET_SR) if len(loud) else 0.0
 
 
 def segment(cfg, audio):
     """Feed audio through the real Segmenter; return [(phrase_audio, emit_time_s)]."""
     q = queue.Queue()
-    seg = T.Segmenter(cfg, q)
+    seg = Segmenter(cfg, q)
     out = []
-    for i in range(0, len(audio) - T.FRAME + 1, T.FRAME):
-        seg.feed(audio[i:i + T.FRAME])
+    for i in range(0, len(audio) - FRAME + 1, FRAME):
+        seg.feed(audio[i:i + FRAME])
         while not q.empty():
             phrase, _ = q.get()
-            out.append((phrase, (i + T.FRAME) / T.TARGET_SR))
+            out.append((phrase, (i + FRAME) / TARGET_SR))
     return out
 
 
 def run_clip(model, cfg, clip, audio16k, skip, skip_thr):
-    sil_a = np.zeros(int(PAD_BEFORE_S * T.TARGET_SR), np.float32)
-    sil_b = np.zeros(int(PAD_AFTER_S * T.TARGET_SR), np.float32)
+    sil_a = np.zeros(int(PAD_BEFORE_S * TARGET_SR), np.float32)
+    sil_b = np.zeros(int(PAD_AFTER_S * TARGET_SR), np.float32)
     stream = np.concatenate([sil_a, audio16k, sil_b])
     end_s = PAD_BEFORE_S + speech_end_s(audio16k, cfg["vad_threshold_db"])
 
@@ -146,7 +149,7 @@ def run_clip(model, cfg, clip, audio16k, skip, skip_thr):
     for phrase, emit_s in phrases:
         start = max(emit_s, busy_until)
         c0, w0 = time.process_time(), time.perf_counter()
-        lang, prob, text = T.run_whisper(model, phrase, skip, skip_thr, cfg["min_language_prob"])
+        lang, prob, text = model.run(phrase, skip, skip_thr, cfg["min_language_prob"])
         wall = time.perf_counter() - w0
         cpu_total += time.process_time() - c0
         infer_total += wall
@@ -169,7 +172,7 @@ def run_clip(model, cfg, clip, audio16k, skip, skip_thr):
         "infer_s": round(infer_total, 3),
         "cpu_cores": round(cpu_total / infer_total, 2) if infer_total else None,
         "chrf": round(chrf(output, clip["english"]), 1) if (output and not is_skip_lang) else None,
-        "clip_s": round(len(audio16k) / T.TARGET_SR, 2),
+        "clip_s": round(len(audio16k) / TARGET_SR, 2),
     }
 
 
@@ -273,15 +276,15 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "benchmarks" / "results"))
     args = ap.parse_args()
 
-    cfg = T.load_config()
-    for key, val in (("model", args.model), ("device", args.device),
-                     ("compute_type", args.compute_type), ("cpu_threads", args.threads),
-                     ("backend", args.backend), ("whispercpp_min_ctx", args.min_ctx),
-                     ("chinese_asr", args.chinese_asr)):
-        if val is not None:
-            cfg[key] = val
+    cfg = load_config()
+    overrides = (("model", args.model), ("device", args.device),
+                 ("compute_type", args.compute_type), ("cpu_threads", args.threads),
+                 ("backend", args.backend), ("whispercpp_min_ctx", args.min_ctx),
+                 ("chinese_asr", args.chinese_asr))
+    cfg = cfg.replace(**{key: val for key, val in overrides if val is not None})
     if args.text_translation is not None:
-        cfg["text_translation"] = [] if args.text_translation == "none" else args.text_translation.split(",")
+        tt = [] if args.text_translation == "none" else args.text_translation.split(",")
+        cfg = cfg.replace(text_translation=tt)
     skip = {s.strip() for s in (args.skip.split(",") if args.skip else cfg["skip_languages"])}
 
     manifest_path = Path(args.clips) / "manifest.json"
@@ -299,8 +302,8 @@ def main():
     label = args.label or f"{cfg['model']}-{engine}-t{cfg['cpu_threads']}" + (
         f"-load{args.with_load}" if args.with_load else "")
     print(f"Loading {cfg['model']} ({cfg['backend']}, {cfg['cpu_threads']} threads)...", flush=True)
-    model = T.load_model(cfg)
-    T.run_whisper(model, np.zeros(T.TARGET_SR, np.float32), skip, cfg["skip_threshold"])  # warm-up
+    model = load_model(cfg)
+    model.run(np.zeros(TARGET_SR, np.float32), skip, cfg["skip_threshold"])  # warm-up
 
     stop, procs = start_load(args.with_load) if args.with_load else (None, [])
     results = []

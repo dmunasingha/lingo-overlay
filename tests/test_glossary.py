@@ -1,6 +1,6 @@
 import pytest
 
-from glossary import Glossary, load_default
+from lingo_overlay.translate.glossary import Glossary, load_default
 
 
 @pytest.fixture(scope="module")

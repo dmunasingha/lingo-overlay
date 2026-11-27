@@ -21,6 +21,9 @@ from pathlib import Path
 
 import numpy as np
 
+from lingo_overlay import ROOT
+from lingo_overlay.log import log as _log
+
 NAME = "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
 URL = f"https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/{NAME}.tar.bz2"
 LANGUAGES = {"zh", "yue"}  # languages we route to SenseVoice (it also knows en/ja/ko)
@@ -42,6 +45,23 @@ def ensure_model(root, log=print):
             tar.extractall(tmp, filter="data")
         os.replace(tmp / NAME, out)  # only a complete model ever appears at `out`
     return out
+
+
+def load_source_asr(cfg):
+    """SenseVoice for Chinese/Cantonese transcripts when ``cfg.chinese_asr`` is "sensevoice"."""
+    choice = str(cfg.chinese_asr).lower()
+    if choice == "whisper":
+        return None
+    if choice != "sensevoice":
+        _log(f"Unknown chinese_asr '{choice}' - using Whisper.")
+        return None
+    try:
+        asr = SenseVoiceASR(ROOT / "models" / "asr", threads=cfg.mt_threads, log=_log)
+        _log("Chinese speech recognition: SenseVoice-Small (FunAudioLLM, FunASR model license)")
+        return asr
+    except Exception as e:  # sherpa-onnx missing, download failed, ...: keep working
+        _log(f"SenseVoice unavailable ({e}); Whisper transcribes Chinese.")
+        return None
 
 
 class SenseVoiceASR:

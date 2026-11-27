@@ -22,7 +22,20 @@ Game voice chat ──► VB-Cable "CABLE Input" ──┬──► Windows "Lis
                               click-through, topmost)          off by default)
 ```
 
-Everything lives in `translator.py` today, with settings in `config.json`.
+The code lives in the `lingo_overlay` package (`translator.py` and `run.bat` remain as entry points;
+`python -m lingo_overlay` also works), with settings in `config.json`:
+
+| Module | What it does |
+|---|---|
+| `config.py` | Typed, frozen `Config` loaded from `config.json`: defaults for missing keys, type/range validation with clear errors, a warning for unknown keys. Also a read-only mapping, so components and scripts accept a `Config` or a plain dict |
+| `audio/` | Capture (`capture.py`: VB-Cable or speaker loopback) and `to_16k_mono` resampling |
+| `vad/` | Per-frame detectors (`silero.py`, `energy.py`) and the `Segmenter` with adaptive phrase ending (`segmenter.py`) |
+| `langid/` | Optional SpeechBrain fast language-ID gate in front of Whisper |
+| `asr/` | `ASRBackend` interface (`detect_language`, `translate`, shared skip decision in `run`) with the whisper.cpp and faster-whisper backends |
+| `tts/sapi.py` | Windows SAPI voice |
+| `ui/overlay.py` | Click-through subtitle overlay |
+| `perf_limits.py` | Process priority and CPU affinity (keeps FPS up) |
+| `hotkeys.py`, `app.py` | Global hotkeys; wiring of threads and queues |
 
 ### Where the time goes (small model, CPU, game running)
 
@@ -96,7 +109,7 @@ opt-in downloads only, clearly labelled.
 | TTS | Kokoro-82M | Apache-2.0 | ✅ | high-quality English |
 | TTS | Windows SAPI voices | built into Windows | ✅ | current fallback, robotic |
 
-## Planned code layout (Phase 1 refactor)
+## Planned code layout (later phases)
 
 ```
 lingo_overlay/

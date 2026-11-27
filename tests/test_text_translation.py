@@ -5,9 +5,11 @@ import pytest
 
 pytest.importorskip("pywhispercpp")  # whispercpp_backend imports it lazily, but keep CI lean
 
-import mt  # noqa: E402
-import translator as T  # noqa: E402
-from whispercpp_backend import WhisperCppModel  # noqa: E402
+from lingo_overlay.asr import HALLUCINATIONS  # noqa: E402
+from lingo_overlay.asr.sensevoice import load_source_asr  # noqa: E402
+from lingo_overlay.asr.whispercpp_backend import WhisperCppModel  # noqa: E402
+from lingo_overlay.config import Config  # noqa: E402
+from lingo_overlay.translate import load_text_translator, mt  # noqa: E402
 
 
 class FakeMT:
@@ -54,8 +56,9 @@ class FakeWhisper:
 def make(lang, mt_=None, asr=None):
     m = WhisperCppModel.__new__(WhisperCppModel)
     m.min_ctx, m.ctx_pad, m.min_prob = 256, 64, 0.2
-    m.hallucinations = set(T.HALLUCINATIONS)
+    m.hallucinations = set(HALLUCINATIONS)
     m.mt, m.source_asr = mt_, asr
+    m.last_source, m._skip = None, set()
     m.model = FakeWhisper(lang)
     m._set_ctx = lambda ctx, audio: None
     return m
@@ -111,7 +114,7 @@ def test_sensevoice_overrules_whisper_on_english():
     fmt = FakeMT()
     m = make("zh", fmt, FakeASR("Spike down beat.", lang="en"))
     lang, _, text = m.run(AUDIO, {"en"}, 0.25, 0.5)
-    assert (lang, text) == ("en", None)
+    assert text is None  # dropped: SenseVoice heard English
     assert fmt.calls == []
 
 
@@ -121,8 +124,22 @@ def test_translator_aliases_cantonese_to_chinese_model():
 
 
 def test_config_defaults_and_opt_in():
-    assert T.CONFIG_DEFAULTS["text_translation"] == ["zh", "yue"]
-    assert T.CONFIG_DEFAULTS["chinese_asr"] == "whisper"  # SenseVoice is opt-in (license)
-    assert T.load_source_asr({"chinese_asr": "whisper", "mt_threads": 2}) is None
-    assert T.load_source_asr({"chinese_asr": "nope", "mt_threads": 2}) is None
-    assert T.load_text_translator({"text_translation": [], "mt_threads": 2}) is None
+    cfg = Config()
+    assert cfg.text_translation == ["zh", "yue"]
+    assert cfg.chinese_asr == "whisper"  # SenseVoice is opt-in (license)
+    assert cfg.game_glossary is True
+    assert load_source_asr(cfg) is None
+    assert load_source_asr(cfg.replace(chinese_asr="nope")) is None
+    assert load_text_translator(cfg.replace(text_translation=[])) is None
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("王反媽是單臣?王反媽是單臣?王反媽是單臣?王反媽是", "王反媽是單臣?"),
+    ("往返吗？是单程。", "往返吗？是单程。"),
+    ("哈哈哈哈哈", "哈哈哈哈哈"),  # short units are real laughter, not a loop
+    ("我去A点我去A点我去A点", "我去A点"),
+])
+def test_chinese_loops_are_collapsed(text, expected):
+    from lingo_overlay.asr.whispercpp_backend import collapse_char_loops
+
+    assert collapse_char_loops(text) == expected
