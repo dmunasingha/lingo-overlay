@@ -75,6 +75,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Key | Default | Meaning |
 |---|---|---|
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
+| `min_language_prob` | `0.5` | Ignore a phrase when the language detector is less sure than this. Filters game sounds and music; 0 disables |
 | `model` | `medium` | `small` ≈ 1.0 s, good · `medium` ≈ 2.2 s, better (CPU, 7700X) |
 | `backend` | `whisper.cpp` | `whisper.cpp` (fast, short encoder window) or `faster-whisper` (slower, slightly higher quality) |
 | `whispercpp_min_ctx` | `256` | Smallest encoder window in 20 ms frames. 128 is ~0.15 s faster but misses more phrases |

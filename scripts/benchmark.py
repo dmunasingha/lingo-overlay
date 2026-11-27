@@ -146,7 +146,7 @@ def run_clip(model, cfg, clip, audio16k, skip, skip_thr):
     for phrase, emit_s in phrases:
         start = max(emit_s, busy_until)
         c0, w0 = time.process_time(), time.perf_counter()
-        lang, prob, text = T.run_whisper(model, phrase, skip, skip_thr)
+        lang, prob, text = T.run_whisper(model, phrase, skip, skip_thr, cfg["min_language_prob"])
         wall = time.perf_counter() - w0
         cpu_total += time.process_time() - c0
         infer_total += wall

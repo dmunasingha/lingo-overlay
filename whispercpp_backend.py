@@ -61,13 +61,14 @@ class WhisperCppModel:
             self.model.transcribe(audio, audio_ctx=ctx, language="en", translate=False,
                                   abort_callback=lambda: True)
 
-    def run(self, audio, skip, skip_thr):
+    def run(self, audio, skip, skip_thr, min_lang_prob=0.0):
         audio = np.ascontiguousarray(audio, dtype=np.float32)
         ctx = self.audio_ctx(len(audio))
         self._set_ctx(ctx, audio)
         (lang, prob), probs = self.model.auto_detect_language(audio)
         skip_p = float(sum(probs.get(code, 0.0) for code in skip))
-        if lang in skip or skip_p >= skip_thr:
+        # Unsure about the language usually means it isn't speech (game sounds, music).
+        if lang in skip or skip_p >= skip_thr or prob < min_lang_prob:
             return lang, float(prob), None
 
         # A short audio_ctx makes Whisper prone to repeating itself until max_tokens,

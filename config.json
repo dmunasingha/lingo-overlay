@@ -4,6 +4,7 @@
 
   "skip_languages": ["en"],
   "skip_threshold": 0.25,
+  "min_language_prob": 0.5,
 
   "model": "medium",
   "backend": "whisper.cpp",

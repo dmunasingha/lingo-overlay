@@ -56,6 +56,7 @@ CONFIG_DEFAULTS = {
     "backend": "whisper.cpp",
     "whispercpp_quant": "q8_0",
     "whispercpp_min_ctx": 256,
+    "min_language_prob": 0.5,
 }
 
 
@@ -197,14 +198,14 @@ def load_model(cfg):
         return WhisperModel(cfg["model"], **kw)
 
 
-def run_whisper(model, audio, skip, skip_thr):
+def run_whisper(model, audio, skip, skip_thr, min_lang_prob=0.0):
     """One encoder pass, shared by language detection and translation.
 
     Returns (lang, lang_prob, text). text is None when skipped / not speech.
     (faster-whisper's transcribe() would run the expensive encoder twice.)
     """
     if hasattr(model, "run"):  # whisper.cpp backend
-        return model.run(audio, skip, skip_thr)
+        return model.run(audio, skip, skip_thr, min_lang_prob)
 
     from faster_whisper.audio import pad_or_trim
     from faster_whisper.tokenizer import Tokenizer
@@ -216,7 +217,8 @@ def run_whisper(model, audio, skip, skip_thr):
     probs = {tok[2:-2]: p for tok, p in model.model.detect_language(enc)[0]}
     lang = max(probs, key=probs.get)
     skip_p = sum(probs.get(code, 0.0) for code in skip)
-    if lang in skip or skip_p >= skip_thr:
+    # Unsure about the language usually means it isn't speech (game sounds, music).
+    if lang in skip or skip_p >= skip_thr or probs[lang] < min_lang_prob:
         return lang, probs[lang], None
 
     tok = Tokenizer(model.hf_tokenizer, True, task="translate", language=lang)
@@ -242,6 +244,7 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
     ui_q.put(("status", "Translator ready"))
     skip = {s.lower() for s in cfg["skip_languages"]}
     skip_thr = cfg["skip_threshold"]
+    min_lang_prob = cfg["min_language_prob"]
 
     while not state["quit"]:
         try:
@@ -255,7 +258,7 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
             continue
 
         t0 = time.time()
-        lang, prob, text = run_whisper(model, audio, skip, skip_thr)
+        lang, prob, text = run_whisper(model, audio, skip, skip_thr, min_lang_prob)
         if text is None:
             log(f"skip  ({lang} {prob:.0%}, {time.time() - t0:.2f}s)")
             continue
