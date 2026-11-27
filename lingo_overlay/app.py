@@ -94,4 +94,8 @@ def cli(argv=None):
     if "--devices" in argv:
         print_devices()
         sys.exit(0)
+    if "--settings" in argv:
+        from lingo_overlay.ui.settings import open_settings
+        open_settings()
+        sys.exit(0)
     main()

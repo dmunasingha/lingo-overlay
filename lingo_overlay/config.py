@@ -197,6 +197,35 @@ def _check_type(name: str, value: Any, annotation: str) -> str | None:
     return f"'{name}' must be {want} (got {json.dumps(value)})"
 
 
+def save_config(changes: Mapping[str, Any], path: Path | str | None = None) -> Config:
+    """Write ``changes`` into config.json and return the new, validated ``Config``.
+
+    Existing keys keep their order and keys this version does not know are kept, so the file stays
+    hand-editable. Values are validated before anything is written, and the file is replaced in one
+    step so a crash mid-write cannot leave half a config behind.
+    """
+    path = Path(path) if path is not None else DEFAULT_PATH
+    unknown = sorted(set(changes) - _FIELD_NAMES_SET)
+    if unknown:
+        raise ConfigError(f"Unknown setting(s): {', '.join(unknown)}")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = {}
+    except json.JSONDecodeError as ex:
+        raise ConfigError(f"{path.name} is not valid JSON (line {ex.lineno}, column {ex.colno}): "
+                          f"{ex.msg}") from None
+    if not isinstance(data, dict):
+        raise ConfigError(f"{path.name}: top level must be a JSON object")
+    data.update(changes)
+    cfg = Config(**{k: v for k, v in data.items() if k in _FIELD_NAMES_SET})  # raises ConfigError
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp.replace(path)
+    return cfg
+
+
 def load_config(path: Path | str | None = None) -> Config:
     path = Path(path) if path is not None else DEFAULT_PATH
     try:

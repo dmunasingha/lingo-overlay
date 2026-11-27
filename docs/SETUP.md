@@ -72,6 +72,11 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 
 ## 4. Configure (`config.json`)
 
+The easiest way is the settings window: double-click `settings.bat` (or run
+`python translator.py --settings`). It covers the input device, skip languages, model, hotkeys,
+subtitle look and voice, and saves to `config.json`. Restart the translator to apply. Every
+setting below can also be edited in `config.json` directly.
+
 | Key | Default | Meaning |
 |---|---|---|
 | `skip_languages` | `["en"]` | Languages left alone (Whisper codes: `en`, `si`, `ta`, `hi`, `es`, `ru`, `pt`, `fr`, `de`, `ja`, `ko`, `zh`, `ar` …) |
