@@ -1,16 +1,12 @@
 import json
 import queue
-import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-
-translator = pytest.importorskip("translator")
-SR = translator.TARGET_SR
+from lingo_overlay import ROOT
+from lingo_overlay.audio import TARGET_SR as SR
+from lingo_overlay.vad import Segmenter
 
 
 def cfg(**kw):
@@ -21,7 +17,7 @@ def cfg(**kw):
 
 def segments(c, audio, block=SR // 10):
     q = queue.Queue()
-    seg = translator.Segmenter(c, q)
+    seg = Segmenter(c, q)
     for i in range(0, len(audio), block):
         seg.feed(audio[i:i + block])
     return seg, [q.get_nowait()[0] for _ in range(q.qsize())]
@@ -49,12 +45,12 @@ def test_energy_ignores_silence():
 
 def test_frame_counts_follow_detector_frame_length():
     c = cfg(vad_backend="energy", vad_silence_ms=450)
-    seg = translator.Segmenter(c, queue.Queue())
+    seg = Segmenter(c, queue.Queue())
     assert seg.frame_len == 480 and seg.silence_frames == 15
 
 
 def test_unknown_backend_still_gives_a_detector():
-    seg = translator.Segmenter(cfg(vad_backend="nope"), queue.Queue())
+    seg = Segmenter(cfg(vad_backend="nope"), queue.Queue())
     assert seg.detector.name in {"silero", "energy"}
 
 

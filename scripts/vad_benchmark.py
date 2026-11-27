@@ -25,9 +25,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import translator  # noqa: E402
+from lingo_overlay.audio import TARGET_SR  # noqa: E402
+from lingo_overlay.config import load_config  # noqa: E402
+from lingo_overlay.vad import Segmenter  # noqa: E402
 
-SR = translator.TARGET_SR
+SR = TARGET_SR
 BLOCK = SR // 10  # capture delivers 100 ms blocks
 
 
@@ -115,7 +117,7 @@ def run(backend, cfg, audio):
     """Feed audio in 100 ms blocks. Returns ([emit sample positions], cpu seconds)."""
     c = dict(cfg, vad_backend=backend)
     rec = _Recorder()
-    seg = translator.Segmenter(c, rec)
+    seg = Segmenter(c, rec)
     if seg.detector.name != backend:
         raise SystemExit(f"{backend} detector could not be loaded")
     t0 = time.process_time()
@@ -140,7 +142,7 @@ def main():
     ap.add_argument("--clips", type=Path, help="folder of speech clips (e.g. benchmarks/clips)")
     ap.add_argument("--backends", default="energy,silero")
     args = ap.parse_args()
-    cfg = translator.load_config()
+    cfg = load_config()
     backends = args.backends.split(",")
 
     print("## Noise-only false triggers (segments per minute)\n")

@@ -4,12 +4,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
 import fps_summary  # noqa: E402
 
-import perf_limits  # noqa: E402
+from lingo_overlay import perf_limits  # noqa: E402
 
 
 @pytest.mark.parametrize("spec", [None, "", "off", []])

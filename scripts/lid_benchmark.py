@@ -2,7 +2,7 @@
 
 For every clip in the clip set this measures:
   * SpeechBrain VoxLingua107: top-1 language, skip-language probability, time and CPU time;
-  * Whisper (run_whisper from translator.py): the full skip/translate decision, time and CPU time.
+  * Whisper (ASRBackend.run from lingo_overlay.asr): the full skip/translate decision, time and CPU time.
 
 It then reports, for several values of lid_confidence:
   gate drop (skip lang)   share of skip-language clips the gate drops before Whisper (higher = more saving)
@@ -33,7 +33,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import translator as T  # noqa: E402
+from lingo_overlay.asr import load_model  # noqa: E402
+from lingo_overlay.audio import TARGET_SR  # noqa: E402
+from lingo_overlay.config import load_config  # noqa: E402
+from lingo_overlay.langid import LID_MODEL, SpeechBrainLID  # noqa: E402
 
 ISO3_TO_1 = {"ara": "ar", "cmn": "zh", "deu": "de", "eng": "en", "fra": "fr", "jpn": "ja",
              "por": "pt", "rus": "ru", "spa": "es", "tur": "tr", "hin": "hi", "ita": "it",
@@ -44,7 +47,7 @@ CONFIDENCES = (0.5, 0.7, 0.8, 0.9, 0.95)
 def decode_16k_mono(path):
     import av
 
-    resampler = av.AudioResampler(format="s16", layout="mono", rate=T.TARGET_SR)
+    resampler = av.AudioResampler(format="s16", layout="mono", rate=TARGET_SR)
     chunks = []
     with av.open(str(path)) as container:
         for frame in container.decode(audio=0):
@@ -89,11 +92,11 @@ def main():
     ap.add_argument("--json", type=Path, help="write per-clip results here")
     args = ap.parse_args()
 
-    cfg = T.load_config()
+    cfg = load_config()
     if args.model:
-        cfg["model"] = args.model
+        cfg = cfg.replace(model=args.model)
     if args.lid_threads:
-        cfg["lid_threads"] = args.lid_threads
+        cfg = cfg.replace(lid_threads=args.lid_threads)
     skip = {s.lower() for s in cfg["skip_languages"]}
 
     clips = list_clips(args.clips)
@@ -101,24 +104,24 @@ def main():
         raise SystemExit(f"No clips in {args.clips}. Run scripts/fetch_clips.py first.")
     print(f"{len(clips)} clips, skip languages: {', '.join(sorted(skip))}", flush=True)
 
-    lid = T.SpeechBrainLID(cfg)
-    model = None if args.no_whisper else T.load_model(cfg)
+    lid = SpeechBrainLID(cfg)
+    model = None if args.no_whisper else load_model(cfg)
     warm = decode_16k_mono(clips[0][0])
     lid.probs(warm)
     if model is not None:
-        T.run_whisper(model, warm, skip, cfg["skip_threshold"])
+        model.run(warm, skip, cfg["skip_threshold"])
 
     rows = []
     for i, (path, lang) in enumerate(clips, 1):
         audio = decode_16k_mono(path)
         probs, lid_wall, lid_cpu = timed(lid.probs, audio)
         top = max(probs, key=probs.get)
-        row = dict(file=path.name, lang=lang, dur=len(audio) / T.TARGET_SR, lid_lang=top,
+        row = dict(file=path.name, lang=lang, dur=len(audio) / TARGET_SR, lid_lang=top,
                    lid_prob=probs[top], lid_skip_p=sum(probs.get(c, 0.0) for c in skip),
                    lid_wall=lid_wall, lid_cpu=lid_cpu)
         if model is not None:
             (w_lang, _, text), w_wall, w_cpu = timed(
-                T.run_whisper, model, audio, skip, cfg["skip_threshold"])
+                model.run, audio, skip, cfg["skip_threshold"])
             row.update(w_lang=w_lang, w_text=text, w_wall=w_wall, w_cpu=w_cpu)
         rows.append(row)
         print(f"  [{i:3}/{len(clips)}] {path.name:22} {lang} -> lid {top} {probs[top]:.2f}"
@@ -130,7 +133,7 @@ def main():
     lid_ms = [r["lid_wall"] * 1000 for r in rows]
     durs = [r["dur"] for r in rows]
 
-    out = [f"## Fast language-ID gate: {T.LID_MODEL}", "",
+    out = [f"## Fast language-ID gate: {LID_MODEL}", "",
            f"{len(rows)} clips ({len(foreign)} foreign, {len(skip_rows)} in skip languages), "
            f"clip length p50 {statistics.median(durs):.1f} s, lid_threads {cfg.get('lid_threads', 2)}, "
            f"Whisper `{cfg['model']}` {cfg['device']}/{cfg['compute_type']} {cfg['cpu_threads']} threads", "",
