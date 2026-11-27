@@ -22,16 +22,15 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
 
 **Goal:** median subtitle latency **≤ 1.0 s** on CPU while gaming, with numbers to prove it.
 
-1. **Benchmark harness** (`scripts/benchmark.py`). Clip set in several languages plus English
-   negatives; reports latency p50/p95, skip accuracy, CPU %, and text for human rating.
-   *Do this first. Every later change is judged by it.*
+1. ✅ **Benchmark harness** (`scripts/benchmark.py`, [BENCHMARKING.md](BENCHMARKING.md)). Baseline:
+   small 1.66 s / medium 3.52 s median latency, ≤ 0.9 % skip errors, chrF 50.6 / 59.9.
 2. **Refactor into a package** (`lingo_overlay/`, see [ARCHITECTURE.md](ARCHITECTURE.md#planned-code-layout-phase-1-refactor))
    with a common `ASRBackend` interface.
 3. **Silero VAD** replaces the energy detector, giving fewer false triggers from game noise.
 4. **Fast language gate**: SpeechBrain VoxLingua107 decides "skip / translate" in ~20 ms, so
    English speech never reaches Whisper.
-5. **whisper.cpp backend with `audio_ctx`**, so the encoder is sized to the clip instead of 30 s.
-   Expected 3–5× faster on short phrases.
+5. ✅ **whisper.cpp backend with `audio_ctx`**, so the encoder is sized to the clip instead of 30 s.
+   Result: small 1.66 → 1.00 s, medium 3.52 → 2.15 s median latency (inference about 2.4× faster).
 6. **Adaptive phrase ending**: end a phrase sooner (250 ms) when the sentence is clearly finished,
    and later when it's mid-word.
 7. **FPS impact test**: measure game FPS with and without the translator (PresentMon), and

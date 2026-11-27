@@ -3,7 +3,7 @@ Live voice-chat translator for gaming (Windows, fully local).
 
 Pipeline:
   Discord audio (via VB-Cable "CABLE Output", or speaker loopback as fallback)
-    -> speech detector (cuts audio into phrases at pauses)
+    -> speech detector (Silero VAD; cuts audio into phrases at pauses)
     -> Whisper: detect language; skip if in skip list; else translate to English
     -> on-screen subtitle overlay (click-through, always on top)
     -> optional English voice (Windows built-in TTS)
@@ -39,7 +39,7 @@ def _add_cuda_dlls():
 
 _add_cuda_dlls()
 TARGET_SR = 16000
-FRAME = 480  # 30 ms @ 16 kHz
+FRAME = 480  # 30 ms analysis frame (energy detector, speech-end measurement in scripts)
 
 HALLUCINATIONS = {
     "thank you.", "thanks for watching!", "thank you for watching.",
@@ -52,9 +52,18 @@ def log(*a):
     print(time.strftime("[%H:%M:%S]"), *a, flush=True)
 
 
-def load_config():
-    with open(HERE / "config.json", encoding="utf-8") as f:
-        return json.load(f)
+CONFIG_DEFAULTS = {
+    "backend": "whisper.cpp",
+    "whispercpp_quant": "q8_0",
+    "whispercpp_min_ctx": 256,
+    "min_language_prob": 0.5,
+    "low_priority": True,
+}
+
+
+def load_config(path=None):
+    with open(path or HERE / "config.json", encoding="utf-8") as f:
+        return {**CONFIG_DEFAULTS, **json.load(f)}
 
 
 # --------------------------------------------------------------------------
@@ -94,8 +103,86 @@ def to_16k_mono(block, sr):
     return np.interp(x, np.arange(len(mono)), mono).astype(np.float32)
 
 
+class EnergyDetector:
+    """Classic energy threshold with a slowly tracked noise floor. 30 ms frames."""
+
+    name = "energy"
+    frame_len = FRAME  # 30 ms @ 16 kHz
+
+    def __init__(self, cfg):
+        self.abs_threshold = cfg.get("vad_threshold_db", -45)
+        self.noise_db = -60.0
+
+    def is_speech(self, f, active):
+        db = 20 * np.log10(np.sqrt(np.mean(f * f)) + 1e-9)
+        speech = db > max(self.abs_threshold, self.noise_db + 10)
+        if not speech:  # slowly track background level
+            self.noise_db = 0.98 * self.noise_db + 0.02 * db
+        return speech
+
+
+class SileroDetector:
+    """Silero VAD v6 (MIT), streamed frame by frame through ONNX Runtime on one CPU thread.
+
+    Uses the model file bundled with faster-whisper, so nothing extra is downloaded.
+    The model takes 512-sample (32 ms) frames at 16 kHz plus 64 samples of context.
+    """
+
+    name = "silero"
+    frame_len = 512  # 32 ms @ 16 kHz (fixed by the model)
+    context_len = 64
+
+    def __init__(self, cfg):
+        import onnxruntime
+        from faster_whisper.utils import get_assets_path
+
+        path = Path(get_assets_path()) / "silero_vad_v6.onnx"
+        opts = onnxruntime.SessionOptions()
+        opts.inter_op_num_threads = 1
+        opts.intra_op_num_threads = 1
+        opts.log_severity_level = 4
+        self.session = onnxruntime.InferenceSession(
+            str(path), providers=["CPUExecutionProvider"], sess_options=opts)
+        self.threshold = float(cfg.get("vad_speech_threshold", 0.5))
+        # Hysteresis (as in Silero's own VADIterator): once speech has started,
+        # keep it going until the probability drops clearly below the threshold.
+        self.neg_threshold = max(self.threshold - 0.15, 0.01)
+        self.reset()
+
+    def reset(self):
+        self.h = np.zeros((1, 1, 128), dtype=np.float32)
+        self.c = np.zeros((1, 1, 128), dtype=np.float32)
+        self.context = np.zeros(self.context_len, dtype=np.float32)
+
+    def prob(self, f):
+        x = np.concatenate([self.context, f]).astype(np.float32, copy=False)[None, :]
+        out, self.h, self.c = self.session.run(None, {"input": x, "h": self.h, "c": self.c})
+        self.context = f[-self.context_len:]
+        return float(out.ravel()[0])
+
+    def is_speech(self, f, active):
+        return self.prob(f) >= (self.neg_threshold if active else self.threshold)
+
+
+def make_detector(cfg):
+    backend = str(cfg.get("vad_backend", "silero")).lower()
+    if backend == "energy":
+        return EnergyDetector(cfg)
+    if backend != "silero":
+        log(f"Unknown vad_backend '{backend}', using silero.")
+    try:
+        return SileroDetector(cfg)
+    except Exception as e:  # missing onnxruntime / model file: still usable
+        log(f"Silero VAD unavailable ({e}); falling back to the energy detector.")
+        return EnergyDetector(cfg)
+
+
 class Segmenter:
-    """Energy-based speech detector. Emits one numpy array per spoken phrase.
+    """Speech detector front end. Emits one numpy array per spoken phrase.
+
+    The per-frame speech/non-speech decision comes from a detector (Silero by
+    default, or the energy threshold); pre-roll, min-speech and max-segment
+    logic is shared.
 
     Phrase ending ("endpointing"):
       * fixed (``vad_adaptive: false``): a phrase ends after ``vad_silence_ms`` of silence.
@@ -109,25 +196,31 @@ class Segmenter:
         and the new speech become one phrase.
     """
 
-    TAIL = 3  # frames (90 ms) that make up the "end of speech" energy window
+    TAIL = 3  # frames (~90 ms) that make up the "end of speech" energy window
 
-    def __init__(self, cfg, out_q):
+    def __init__(self, cfg, out_q, detector=None):
         self.out_q = out_q
-        ms = lambda key, default: max(1, round(cfg.get(key, default) / 30))  # noqa: E731
-        self.silence_frames = ms("vad_silence_ms", 450)
-        self.max_frames = int(cfg["vad_max_segment_s"] * 1000 / 30)
-        self.min_speech_frames = int(cfg["vad_min_speech_ms"] / 30)
-        self.abs_threshold = cfg["vad_threshold_db"]
+        self.detector = detector or make_detector(cfg)
+        self.frame_len = self.detector.frame_len
+        frame_ms = self.frame_len * 1000 / TARGET_SR
+
+        def frames(ms):
+            return max(1, round(ms / frame_ms))
+
+        self.silence_frames = frames(cfg.get("vad_silence_ms", 450))
+        self.max_frames = frames(cfg["vad_max_segment_s"] * 1000)
+        self.min_speech_frames = frames(cfg["vad_min_speech_ms"])
+        self.preroll_frames = frames(300)  # audio kept from before speech starts
+        self.start_frames = 3  # consecutive speech frames needed to open a phrase
 
         self.adaptive = cfg.get("vad_adaptive", True)
-        self.fast_frames = ms("vad_fast_silence_ms", 250)
-        self.slow_frames = ms("vad_slow_silence_ms", 700)
-        self.merge_frames = round(cfg.get("vad_merge_gap_ms", 300) / 30)
-        self.fragment_frames = round(cfg.get("vad_fragment_ms", 800) / 30)
+        self.fast_frames = frames(cfg.get("vad_fast_silence_ms", 250))
+        self.slow_frames = frames(cfg.get("vad_slow_silence_ms", 700))
+        self.merge_frames = round(cfg.get("vad_merge_gap_ms", 300) / frame_ms)
+        self.fragment_frames = round(cfg.get("vad_fragment_ms", 800) / frame_ms)
         self.fall_db = cfg.get("vad_fall_db", 3.0)  # tail this much below the frames before it
         self.peak_db = cfg.get("vad_peak_db", 3.0)  # tail within this much of the peak = mid-word
 
-        self.noise_db = -60.0
         self.buf = np.zeros(0, dtype=np.float32)
         self.preroll = []
         self.active = False
@@ -147,8 +240,9 @@ class Segmenter:
 
     def feed(self, samples):
         self.buf = np.concatenate([self.buf, samples])
-        while len(self.buf) >= FRAME:
-            f, self.buf = self.buf[:FRAME], self.buf[FRAME:]
+        n = self.frame_len
+        while len(self.buf) >= n:
+            f, self.buf = self.buf[:n], self.buf[n:]
             self._frame(f)
             self.frame_idx += 1
 
@@ -185,21 +279,18 @@ class Segmenter:
         return self.silence_frames, "normal"
 
     def _frame(self, f):
-        db = 20 * np.log10(np.sqrt(np.mean(f * f)) + 1e-9)
-        is_speech = db > max(self.abs_threshold, self.noise_db + 10)
-        if not is_speech:  # slowly track background level
-            self.noise_db = 0.98 * self.noise_db + 0.02 * db
+        is_speech = self.detector.is_speech(f, self.active)
 
         if not self.active:
             self.preroll.append(f)
-            keep = 10 if self.pending is None else self.merge_frames + 3
-            self.preroll = self.preroll[-max(10, keep):]  # ~300 ms before speech starts
+            keep = self.preroll_frames if self.pending is None else self.merge_frames + self.start_frames
+            self.preroll = self.preroll[-max(self.preroll_frames, keep):]
             self.start_streak = self.start_streak + 1 if is_speech else 0
-            if self.start_streak >= 3:
+            if self.start_streak >= self.start_frames:
                 self.active = True
                 self.frames = list(self.preroll)
                 self.speech_db = []
-                self.speech_count = 3
+                self.speech_count = self.start_frames
                 if self.pending is not None:  # speech resumed soon enough: merge
                     frames, speech = self.pending
                     self.pending = None
@@ -210,15 +301,15 @@ class Segmenter:
                 return
             if self.pending is not None:
                 self.pending_age += 1
-                # +3: the 3-frame start streak means speech began 3 frames before we know it
-                if self.pending_age > self.merge_frames + 3:
+                # the start streak means speech began a few frames before we know it
+                if self.pending_age > self.merge_frames + self.start_frames:
                     self._emit_pending()
             return
 
         self.frames.append(f)
         if is_speech:
             self.speech_count += 1
-            self.speech_db.append(db)
+            self.speech_db.append(20 * np.log10(np.sqrt(np.mean(f * f)) + 1e-9))
             self.silence_count = 0
         else:
             if self.silence_count == 0:
@@ -243,6 +334,7 @@ def capture_loop(cfg, seg_q, state):
     mic = open_recorder(cfg)
     sr = 48000
     seg = Segmenter(cfg, seg_q)
+    log(f"Speech detector: {seg.detector.name}")
     import warnings
     warnings.filterwarnings("ignore", message="data discontinuity")
     with mic.recorder(samplerate=sr, channels=1, blocksize=4800) as rec:
@@ -257,6 +349,13 @@ def capture_loop(cfg, seg_q, state):
 # --------------------------------------------------------------------------
 def load_model(cfg):
     """Use the already-downloaded model offline; only go online if it's missing."""
+    if cfg["backend"] == "whisper.cpp":
+        from whispercpp_backend import WhisperCppModel, ensure_model
+
+        path = ensure_model(HERE / "models" / "ggml", cfg["model"], cfg["whispercpp_quant"], log)
+        return WhisperCppModel(path, cfg["cpu_threads"], min_ctx=cfg["whispercpp_min_ctx"],
+                               hallucinations=HALLUCINATIONS)
+
     from faster_whisper import WhisperModel
 
     kw = dict(device=cfg["device"], compute_type=cfg["compute_type"],
@@ -271,12 +370,15 @@ def load_model(cfg):
         return WhisperModel(cfg["model"], **kw)
 
 
-def run_whisper(model, audio, skip, skip_thr):
+def run_whisper(model, audio, skip, skip_thr, min_lang_prob=0.0):
     """One encoder pass, shared by language detection and translation.
 
     Returns (lang, lang_prob, text). text is None when skipped / not speech.
     (faster-whisper's transcribe() would run the expensive encoder twice.)
     """
+    if hasattr(model, "run"):  # whisper.cpp backend
+        return model.run(audio, skip, skip_thr, min_lang_prob)
+
     from faster_whisper.audio import pad_or_trim
     from faster_whisper.tokenizer import Tokenizer
     from faster_whisper.transcribe import get_suppressed_tokens
@@ -287,7 +389,8 @@ def run_whisper(model, audio, skip, skip_thr):
     probs = {tok[2:-2]: p for tok, p in model.model.detect_language(enc)[0]}
     lang = max(probs, key=probs.get)
     skip_p = sum(probs.get(code, 0.0) for code in skip)
-    if lang in skip or skip_p >= skip_thr:
+    # Unsure about the language usually means it isn't speech (game sounds, music).
+    if lang in skip or skip_p >= skip_thr or probs[lang] < min_lang_prob:
         return lang, probs[lang], None
 
     tok = Tokenizer(model.hf_tokenizer, True, task="translate", language=lang)
@@ -307,12 +410,13 @@ def run_whisper(model, audio, skip, skip_thr):
 
 
 def translate_loop(cfg, seg_q, ui_q, tts_q, state):
-    log(f"Loading Whisper '{cfg['model']}' on {cfg['device']} ({cfg['compute_type']})...")
+    log(f"Loading Whisper '{cfg['model']}' ({cfg['backend']}, {cfg['cpu_threads']} CPU threads)...")
     model = load_model(cfg)
     log("Model ready. Listening for speech...")
     ui_q.put(("status", "Translator ready"))
     skip = {s.lower() for s in cfg["skip_languages"]}
     skip_thr = cfg["skip_threshold"]
+    min_lang_prob = cfg["min_language_prob"]
 
     while not state["quit"]:
         try:
@@ -326,7 +430,7 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
             continue
 
         t0 = time.time()
-        lang, prob, text = run_whisper(model, audio, skip, skip_thr)
+        lang, prob, text = run_whisper(model, audio, skip, skip_thr, min_lang_prob)
         if text is None:
             log(f"skip  ({lang} {prob:.0%}, {time.time() - t0:.2f}s)")
             continue
@@ -465,8 +569,24 @@ def setup_hotkeys(cfg, state, ui_q, tts_q):
     keyboard.add_hotkey(cfg["hotkey_quit"], quit_)
 
 
+def lower_priority():
+    """Below-normal process priority: Windows always serves the game first, and the
+    translator only uses CPU time the game leaves over. Its threads inherit this."""
+    BELOW_NORMAL_PRIORITY_CLASS = 0x4000
+    k32 = ctypes.windll.kernel32
+    # Declare HANDLE as pointer-sized, or ctypes truncates it to 32 bits and the call fails.
+    k32.GetCurrentProcess.restype = ctypes.c_void_p
+    k32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    if k32.SetPriorityClass(k32.GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS):
+        log("Running at below-normal priority (game gets the CPU first)")
+    else:
+        log(f"Could not lower process priority (error {k32.GetLastError()})")
+
+
 def main():
     cfg = load_config()
+    if cfg["low_priority"]:
+        lower_priority()
     state = {"enabled": True, "voice": cfg["voice_enabled"], "quit": False, "last": None}
     seg_q, ui_q, tts_q = queue.Queue(), queue.Queue(), queue.Queue()
 

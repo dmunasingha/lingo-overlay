@@ -30,7 +30,8 @@ sys.path.insert(0, str(ROOT))
 
 import translator as T  # noqa: E402
 
-BASE = {"vad_max_segment_s": 7, "vad_min_speech_ms": 400, "vad_threshold_db": -45}
+# Energy detector: frame indices below assume its 30 ms frames.
+BASE = {"vad_max_segment_s": 7, "vad_min_speech_ms": 400, "vad_threshold_db": -45, "vad_backend": "energy"}
 
 SETTINGS = {
     "fixed 450 ms (v0.1)": {"vad_adaptive": False, "vad_silence_ms": 450},
