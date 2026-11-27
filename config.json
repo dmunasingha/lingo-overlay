@@ -4,6 +4,9 @@
 
   "skip_languages": ["en"],
   "skip_threshold": 0.25,
+  "lid_backend": "whisper",
+  "lid_confidence": 0.5,
+  "lid_threads": 2,
 
   "model": "medium",
   "device": "cpu",

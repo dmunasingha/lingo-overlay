@@ -75,6 +75,9 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `model` | `medium` | `small` ≈ 1.5 s, good · `medium` ≈ 3.8 s, better (CPU, 7700X) |
 | `device` | `cpu` | `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
 | `cpu_threads` | `6` | Lower to 4 if game FPS drops |
+| `lid_backend` | `"whisper"` | `"speechbrain"` turns on the fast language-ID gate: speech it is confident is in a skip language is dropped before Whisper runs. Needs `pip install -r requirements-lid.txt` (see that file for the small CPU-only torch). Falls back to `"whisper"` if it can't load |
+| `lid_confidence` | `0.5` | How sure the gate must be (0–1) before it drops a phrase. Anything less goes to Whisper as usual |
+| `lid_threads` | `2` | CPU threads for the gate |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
