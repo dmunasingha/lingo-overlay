@@ -17,6 +17,7 @@ models/
 *.mp3
 *.flac
 benchmarks/results/
+benchmarks/clips/
 
 # Editors / OS
 .vscode/
@@ -26,3 +27,4 @@ Desktop.ini
 
 # Claude Code local settings
 .claude/settings.local.json
+/bench/
