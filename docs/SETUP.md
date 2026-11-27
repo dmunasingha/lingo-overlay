@@ -98,6 +98,7 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `game_glossary` | `true` | Keep VALORANT agent, weapon and map names intact in translations ("这个clo" → "this Clove", 幻影 → Phantom). The word list is `glossary/valorant.json`; fixes welcome |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
+| `tray_enabled` | `true` | Tray icon: grey = off, blue = loading the model, green = listening, orange = translating. Right-click for translator on/off, spoken translation, settings (opens `config.json`) and quit |
 
 ## Troubleshooting
 

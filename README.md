@@ -19,6 +19,7 @@ Teammate (Spanish) ──► you hear them live, as normal
 - 💬 **Click-through subtitle overlay**, always on top (borderless windowed games)
 - 🔊 **Optional spoken translation** (off by default)
 - ⌨️ **Global hotkeys**: toggle, voice, replay, quit
+- 🟢 **System tray icon** showing off / listening / translating, with a quick menu
 - 🖥️ **CPU-first**, so the GPU stays with your game
 - 🔒 **100 % offline**: no accounts, no API keys, no cloud, no telemetry
 - 🛡️ **Anti-cheat safe**: no injection, no hooks, no memory reading, just Windows audio APIs and a normal window
