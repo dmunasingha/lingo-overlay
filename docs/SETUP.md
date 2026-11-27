@@ -94,6 +94,8 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `lid_threads` | `2` | CPU threads for the gate |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
+| `stream_partials` | `false` | Show grey live subtitles while someone is still talking, then the white final line. Re-decodes the open phrase, so it costs extra CPU |
+| `stream_first_ms`, `stream_interval_ms` | `400`, `500` | When the first live update comes after a phrase starts, and how often it is refreshed |
 
 ## Troubleshooting
 

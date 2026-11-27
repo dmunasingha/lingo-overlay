@@ -45,7 +45,7 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
 
 **Goal:** subtitles appear *while* people talk, and a natural translated voice is available.
 
-1. **Streaming partial subtitles**: re-decode the growing buffer every ~0.5 s and show the stable
+1. ✅ **Streaming partial subtitles** (opt-in, `stream_partials`): re-decode the growing buffer every ~0.5 s and show the stable
    prefix (LocalAgreement). Grey text = live, white = final.
 2. **Neural TTS**: Piper (multi-voice, CPU-fast) and Kokoro (English quality), streamed
    sentence by sentence.
