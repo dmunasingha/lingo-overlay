@@ -55,6 +55,7 @@ class Config(Mapping):
     cpu_threads: int = 4
     process_priority: str = "below_normal"
     cpu_affinity: str | list[int] | None = "off"
+    game_profile: str = ""  # "valorant" -> profiles/valorant.txt as Whisper vocabulary hints
 
     # Speech detector
     vad_backend: str = "silero"  # "silero" | "energy"

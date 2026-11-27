@@ -1,0 +1,70 @@
+# VALORANT vocabulary hints for Whisper (config: "game_profile": "valorant").
+# One term per line; blank lines and lines starting with # are ignored.
+# Whisper sees these as an initial prompt, so it spells the names right instead of
+# mangling them ("Jet" -> "Jett", "K O" -> "KAY/O"). Keep the list short: a long prompt
+# costs decode time and makes Whisper more likely to repeat it on noise.
+# Agent, weapon and map names are kept in sync with glossary/valorant.json. Everyday
+# callout words (spike, rotate, eco) are left out: Whisper already knows them.
+
+# Agents
+Astra
+Breach
+Brimstone
+Chamber
+Clove
+Cypher
+Deadlock
+Fade
+Gekko
+Harbor
+Iso
+Jett
+KAY/O
+Killjoy
+Neon
+Omen
+Phoenix
+Raze
+Reyna
+Sage
+Skye
+Sova
+Tejo
+Viper
+Vyse
+Waylay
+Yoru
+
+# Weapons
+Classic
+Shorty
+Frenzy
+Ghost
+Sheriff
+Stinger
+Spectre
+Bucky
+Judge
+Bulldog
+Guardian
+Phantom
+Vandal
+Marshal
+Outlaw
+Operator
+Ares
+Odin
+
+# Maps
+Ascent
+Bind
+Haven
+Split
+Icebox
+Breeze
+Fracture
+Pearl
+Lotus
+Sunset
+Abyss
+

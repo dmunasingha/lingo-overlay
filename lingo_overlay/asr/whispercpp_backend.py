@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from lingo_overlay.asr.base import ASRBackend
+from lingo_overlay.asr.vocab import is_prompt_echo
 
 # Phrases Whisper invents for silence/noise when transcribing (not translating), e.g. subtitle
 # credits from its training data. Matched as substrings of the original-language transcript.
@@ -33,12 +34,18 @@ class WhisperCppModel(ASRBackend):
     transcribed in the original language and translated as text, which is much more accurate
     for e.g. Chinese. ``source_asr`` (``lingo_overlay.asr.sensevoice.SenseVoiceASR``) then does
     that transcription instead of Whisper for the languages in ``source_asr.languages``.
+
+    ``prompt`` (game vocabulary hints, ``lingo_overlay.asr.vocab``) is Whisper's initial prompt
+    when it translates to English. It is not used for original-language transcripts (the MT
+    path): an English word list would pull e.g. Chinese speech towards English, and the game
+    glossary already handles names there.
     """
 
     name = "whisper.cpp"
+    prompt = ""
 
     def __init__(self, model_path, threads, min_ctx=256, ctx_pad=64, min_prob=0.2, hallucinations=(),
-                 mt=None, source_asr=None):
+                 mt=None, source_asr=None, prompt=""):
         from pywhispercpp.model import Model
 
         if not Path(model_path).is_file():
@@ -49,6 +56,7 @@ class WhisperCppModel(ASRBackend):
         self.hallucinations = set(hallucinations)
         self.mt = mt
         self.source_asr = source_asr
+        self.prompt = prompt
         self.last_source = None  # original-language transcript of the last MT phrase (for logs)
         self._skip = set()
         self.model = Model(
@@ -114,11 +122,13 @@ class WhisperCppModel(ASRBackend):
         # which costs seconds. Nobody says more than ~8 English tokens per second;
         # transcripts in languages like Chinese need more tokens per second.
         max_tokens = int(len(audio) / 16000 * (16 if use_mt else 8)) + 12
+        # pywhispercpp keeps parameters between calls, so always set the prompt explicitly.
+        prompt = "" if use_mt else self.prompt
         segs = self.model.transcribe(audio, audio_ctx=ctx, language=lang, translate=not use_mt,
                                      max_tokens=max_tokens, abort_callback=None,
-                                     extract_probability=True)
+                                     extract_probability=True, initial_prompt=prompt)
         text = collapse_repeats(" ".join(s.text.strip() for s in segs).strip())
-        if not text or text.lower() in self.hallucinations:
+        if not text or text.lower() in self.hallucinations or is_prompt_echo(text, prompt):
             return None
         # Geometric-mean token probability. Translations score low even when correct
         # (0.25-0.5 is common), so only drop real garbage.

@@ -143,3 +143,16 @@ def test_chinese_loops_are_collapsed(text, expected):
     from lingo_overlay.asr.whispercpp_backend import collapse_char_loops
 
     assert collapse_char_loops(text) == expected
+
+
+def test_game_prompt_only_when_whisper_translates():
+    m = make("es", FakeMT(), None)
+    m.prompt = "Jett, Sage."
+    m.run(AUDIO, {"en"}, 0.25, 0.5)
+    assert m.model.transcribes[-1]["initial_prompt"] == "Jett, Sage."
+    # Original-language transcripts for MT get no English word list; it must be cleared
+    # explicitly because pywhispercpp keeps parameters between calls.
+    m = make("zh", FakeMT(), None)
+    m.prompt = "Jett, Sage."
+    m.run(AUDIO, {"en"}, 0.25, 0.5)
+    assert m.model.transcribes[-1]["initial_prompt"] == ""

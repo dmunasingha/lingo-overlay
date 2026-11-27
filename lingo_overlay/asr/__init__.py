@@ -6,6 +6,7 @@
 
 from lingo_overlay import ROOT
 from lingo_overlay.asr.base import HALLUCINATIONS, ASRBackend, is_hallucination
+from lingo_overlay.asr.vocab import load_prompt
 from lingo_overlay.log import log
 
 __all__ = ["HALLUCINATIONS", "ASRBackend", "is_hallucination", "load_model"]
@@ -22,7 +23,8 @@ def load_model(cfg) -> ASRBackend:
         mt = load_text_translator(cfg)
         return WhisperCppModel(path, cfg.cpu_threads, min_ctx=cfg.whispercpp_min_ctx,
                                hallucinations=HALLUCINATIONS, mt=mt,
-                               source_asr=load_source_asr(cfg) if mt else None)
+                               source_asr=load_source_asr(cfg) if mt else None,
+                               prompt=load_prompt(cfg.game_profile))
 
     from lingo_overlay.asr.faster_whisper_backend import FasterWhisperBackend
 
