@@ -22,9 +22,8 @@ Targets refer to the metrics in [GOALS.md](GOALS.md#success-metrics).
 
 **Goal:** median subtitle latency **≤ 1.0 s** on CPU while gaming, with numbers to prove it.
 
-1. **Benchmark harness** (`scripts/benchmark.py`). Clip set in several languages plus English
-   negatives; reports latency p50/p95, skip accuracy, CPU %, and text for human rating.
-   *Do this first. Every later change is judged by it.*
+1. ✅ **Benchmark harness** (`scripts/benchmark.py`, [BENCHMARKING.md](BENCHMARKING.md)). Baseline:
+   small 1.66 s / medium 3.52 s median latency, ≤ 0.9 % skip errors, chrF 50.6 / 59.9.
 2. **Refactor into a package** (`lingo_overlay/`, see [ARCHITECTURE.md](ARCHITECTURE.md#planned-code-layout-phase-1-refactor))
    with a common `ASRBackend` interface.
 3. **Silero VAD** replaces the energy detector, giving fewer false triggers from game noise.

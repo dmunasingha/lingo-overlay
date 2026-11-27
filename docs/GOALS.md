@@ -23,16 +23,17 @@ You always hear the original voice live. The translation is added on top.
 
 ## Success metrics
 
-These are measured by `scripts/benchmark.py` (planned in Phase 1) on a fixed set of voice clips,
-**with a game running**, on a reference PC (Ryzen 7 7700X, GTX 1660, 16 GB RAM).
+These are measured by `scripts/benchmark.py` (see [BENCHMARKING.md](BENCHMARKING.md)) on a set of
+120 short voice clips in 10 languages, on a reference PC (Ryzen 7 7700X, GTX 1660, 16 GB RAM).
 
 | Metric | Today (v0.1) | Phase 1 target | Long-term target |
 |---|---|---|---|
-| Subtitle latency (end of speech → subtitle, median) | 1.5 s (small) / 3.8 s (medium) | **≤ 1.0 s** | ≤ 0.5 s, with partial subtitles while the person is still talking |
+| Subtitle latency (end of speech → subtitle, median) | 1.66 s (small) / 3.52 s (medium) | **≤ 1.0 s** | ≤ 0.5 s, with partial subtitles while the person is still talking |
 | Spoken-translation latency (end of speech → voice starts) | n/a | ≤ 1.5 s | ≤ 1.0 s |
 | Game FPS impact while translating | not measured | ≤ 5 % | ≤ 3 % |
-| English speech wrongly translated (should be skipped) | not measured | ≤ 5 % of phrases | ≤ 2 % |
-| Foreign speech wrongly skipped | not measured | ≤ 5 % of phrases | ≤ 2 % |
+| English speech wrongly translated (should be skipped) | 0.0 % (small and medium) | ≤ 5 % of phrases | ≤ 2 % |
+| Foreign speech wrongly skipped | 0.9 % small / 0.0 % medium | ≤ 5 % of phrases | ≤ 2 % |
+| Translation quality, chrF vs human translation (automatic) | 50.6 small / 59.9 medium | ≥ 55 with small-speed latency | ≥ 65 |
 | Translation quality (human "meaning correct" rating) | ~75–80 % (estimate) | ≥ 80 % | ≥ 90 % |
 | Setup time for a new user | ~15 min, manual | ≤ 5 min with installer | 1-click installer, no VB-Cable needed |
 
