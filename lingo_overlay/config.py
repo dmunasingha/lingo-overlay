@@ -83,6 +83,9 @@ class Config(Mapping):
     overlay_bottom_offset: int = 160
     overlay_opacity: float = 0.85
 
+    # System tray icon (needs pystray + Pillow; skipped with a log line if they are missing)
+    tray_enabled: bool = True
+
     # Hotkeys
     hotkey_toggle: str = "ctrl+alt+t"
     hotkey_voice: str = "ctrl+alt+v"

@@ -44,6 +44,8 @@
   "overlay_bottom_offset": 160,
   "overlay_opacity": 0.85,
 
+  "tray_enabled": true,
+
   "hotkey_toggle": "ctrl+alt+t",
   "hotkey_voice": "ctrl+alt+v",
   "hotkey_replay": "ctrl+alt+r",
