@@ -61,8 +61,8 @@ CONFIG_DEFAULTS = {
 }
 
 
-def load_config():
-    with open(HERE / "config.json", encoding="utf-8") as f:
+def load_config(path=None):
+    with open(path or HERE / "config.json", encoding="utf-8") as f:
         return {**CONFIG_DEFAULTS, **json.load(f)}
 
 
