@@ -1,4 +1,4 @@
-"""Entry point kept for `run.bat` and `python translator.py [--devices]`.
+"""Entry point kept for `run.bat` and `python translator.py [--devices | --settings]`.
 
 The code lives in the `lingo_overlay` package; see docs/ARCHITECTURE.md.
 Also runnable as `python -m lingo_overlay`.

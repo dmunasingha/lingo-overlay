@@ -33,6 +33,8 @@ python -m venv .venv
 .\run.bat
 ```
 
+To change the input device, skip languages, model, hotkeys or subtitle look, run `settings.bat`.
+
 For voice-chat-only listening (recommended), install VB-Cable and point your game's voice output
 to it. See the **[setup guide](docs/SETUP.md)** (Valorant, Discord and others).
 
