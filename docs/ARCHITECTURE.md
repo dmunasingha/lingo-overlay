@@ -81,7 +81,7 @@ opt-in downloads only, clearly labelled.
 |---|---|---|---|---|
 | ASR + language ID + translate | OpenAI Whisper (tiny … large-v3) | MIT | ✅ | `large-v3-turbo` is poor at the translate task. Use small/medium |
 | Runtime | faster-whisper / CTranslate2 | MIT | ✅ | current |
-| Runtime | whisper.cpp | MIT | ✅ | planned, for `audio_ctx` |
+| Runtime | whisper.cpp (via `pywhispercpp`, MIT) | MIT | ✅ | optional backend (`asr_backend`), uses `audio_ctx`; ggml weights from `ggerganov/whisper.cpp` |
 | VAD | Silero VAD | MIT | ✅ | planned |
 | Language ID | SpeechBrain `lang-id-voxlingua107-ecapa` | Apache-2.0 | ✅ | planned, 107 languages |
 | Text MT (optional 2-stage) | Opus-MT (Helsinki-NLP) | CC-BY-4.0 | ✅ | attribution required; per-language-pair models |

@@ -1,0 +1,3 @@
+# Optional: whisper.cpp ASR backend ("asr_backend": "whisper.cpp" in config.json).
+# pywhispercpp (MIT) ships prebuilt Windows wheels with whisper.cpp (MIT) bundled.
+pywhispercpp>=1.5,<2

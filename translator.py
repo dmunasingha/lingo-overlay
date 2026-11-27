@@ -218,10 +218,182 @@ def run_whisper(model, audio, skip, skip_thr):
     return lang, probs[lang], text
 
 
+class FasterWhisperBackend:
+    """Default backend: faster-whisper / CTranslate2 (always encodes a 30 s window)."""
+
+    name = "faster-whisper"
+
+    def __init__(self, cfg):
+        log(f"Loading Whisper '{cfg['model']}' on {cfg['device']} ({cfg['compute_type']})...")
+        self.model = load_model(cfg)
+
+    def run(self, audio, skip, skip_thr):
+        return run_whisper(self.model, audio, skip, skip_thr)
+
+
+# --------------------------------------------------------------------------
+# whisper.cpp backend: encoder sized to the clip via audio_ctx
+# --------------------------------------------------------------------------
+WHISPERCPP_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{}.bin"
+ENC_FRAMES_PER_S = 50   # Whisper encoder positions per second of audio (1500 = 30 s)
+MIN_CPP_SAMPLES = int(1.1 * TARGET_SR)  # whisper.cpp ignores input shorter than 1 s
+
+
+def audio_ctx_for(n_samples, minimum, margin=16):
+    """Encoder context (positions) that covers the clip, plus a small margin.
+
+    Never below `minimum` (very small contexts hurt quality) or above the full 1500.
+    """
+    need = -(-n_samples * ENC_FRAMES_PER_S // TARGET_SR) + margin
+    return int(min(1500, max(minimum, need)))
+
+
+def max_tokens_for(n_samples):
+    """Token budget for one phrase: generous for speech, but stops runaway repetition loops."""
+    return int(16 + 12 * n_samples / TARGET_SR)
+
+
+def collapse_repeats(text, min_run=3, min_run_single=5, max_n=12):
+    """Collapse a phrase repeated `min_run`+ times in a row ("a b. a b. a b." -> "a b.").
+
+    A shortened encoder context occasionally sends Whisper's decoder into a loop.
+    Single words need `min_run_single` repeats, so callouts like "go go go" survive.
+    """
+    words = text.split()
+    out, i = [], 0
+    while i < len(words):
+        for n in range(1, min(max_n, len(words) - i) + 1):
+            need = min_run_single if n == 1 else min_run
+            if (len(words) - i) < need * n:
+                continue
+            gram = words[i:i + n]
+            run = 1
+            while words[i + run * n:i + (run + 1) * n] == gram:
+                run += 1
+            if run >= need:
+                out.extend(gram)
+                i += run * n
+                # Drop a cut-off partial repeat at the very end ("... to the bes").
+                tail = words[i:]
+                k = len(tail)
+                if tail and k <= n and tail[:-1] == gram[:k - 1] and gram[k - 1].startswith(tail[-1]):
+                    i = len(words)
+                break
+        else:
+            out.append(words[i])
+            i += 1
+    return " ".join(out)
+
+
+def whispercpp_model_path(cfg):
+    """models/ggml-<name>.bin, downloaded once if missing. A direct file path also works."""
+    name = cfg.get("whispercpp_model") or f"{cfg['model']}-q8_0"
+    if name.endswith(".bin") and Path(name).is_file():
+        return Path(name)
+    path = HERE / "models" / f"ggml-{name}.bin"
+    if not path.is_file():
+        import urllib.request
+        log(f"whisper.cpp model '{name}' not found locally - downloading (one time)...")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        part = path.with_suffix(".bin.part")
+        urllib.request.urlretrieve(WHISPERCPP_URL.format(name), part)
+        part.replace(path)
+    return path
+
+
+class WhisperCppBackend:
+    """whisper.cpp via pywhispercpp, with `audio_ctx` set from the clip length.
+
+    Per phrase:
+      1. language ID: one encoder pass over just the clip (+ margin), full probabilities;
+      2. only if not skipped: translate with the same audio_ctx (second, short pass).
+    Skipped phrases (English by default, the common case) cost a single short encode.
+    """
+
+    name = "whisper.cpp"
+
+    def __init__(self, cfg):
+        import _pywhispercpp as pw
+        from pywhispercpp.model import Model
+
+        path = whispercpp_model_path(cfg)
+        log(f"Loading whisper.cpp '{path.name}' ({cfg['cpu_threads']} threads)...")
+        self.pw = pw
+        self.threads = cfg["cpu_threads"]
+        self.ctx_min = cfg.get("whispercpp_audio_ctx_min", 512)
+        self.model = Model(
+            str(path), redirect_whispercpp_logs_to=None, n_threads=self.threads,
+            print_progress=False, print_realtime=False, print_timestamps=False,
+            no_context=True, no_timestamps=True, single_segment=True,
+            temperature=0.0, temperature_inc=0.0, max_tokens=200, suppress_blank=True,
+        )
+        self.langs = self.model.available_languages()
+        # Quiet whisper.cpp's per-call logging (incl. the intended "aborting" line below).
+        pw.whisper_log_set(lambda *_: None)
+
+    def _detect(self, audio, actx):
+        """Language probabilities from one shortened encoder pass.
+
+        whisper_lang_auto_detect() encodes with the context size the last whisper_full()
+        set, so run whisper_full() just far enough to compute the mel spectrogram and set
+        audio_ctx: a known language skips its own detection, and the encoder-begin
+        callback returning False stops it before encoding.
+        """
+        p, pw = self.model._params, self.pw
+        p.language, p.translate, p.audio_ctx = "en", False, actx
+        p.set_encoder_begin_callback(lambda *_: False)
+        try:
+            pw.whisper_full(self.model._ctx, p, audio, audio.size)
+        finally:
+            p.clear_encoder_begin_callback()
+        probs = np.zeros(len(self.langs), dtype=np.float32)
+        pw.whisper_lang_auto_detect(self.model._ctx, 0, self.threads, probs)
+        return {code: float(pr) for code, pr in zip(self.langs, probs, strict=True)}
+
+    def run(self, audio, skip, skip_thr, audio_ctx=None):
+        audio = np.ascontiguousarray(audio, dtype=np.float32)
+        if len(audio) < MIN_CPP_SAMPLES:
+            audio = np.pad(audio, (0, MIN_CPP_SAMPLES - len(audio)))
+        actx = audio_ctx_for(len(audio), self.ctx_min) if audio_ctx is None else audio_ctx
+
+        probs = self._detect(audio, actx)
+        lang = max(probs, key=probs.get)
+        skip_p = sum(probs.get(code, 0.0) for code in skip)
+        if lang in skip or skip_p >= skip_thr:
+            return lang, probs[lang], None
+
+        p, pw, ctx = self.model._params, self.pw, self.model._ctx
+        p.language, p.translate, p.audio_ctx = lang, True, actx
+        p.max_tokens = max_tokens_for(len(audio))
+        pw.whisper_full(ctx, p, audio, audio.size)
+        text = collapse_repeats("".join(
+            pw.whisper_full_get_segment_text(ctx, i).decode("utf-8", "replace")
+            for i in range(pw.whisper_full_n_segments(ctx))
+        ).strip())
+        if not text or text.lower() in HALLUCINATIONS:
+            return lang, probs[lang], None
+        return lang, probs[lang], text
+
+
+def load_backend(cfg):
+    """Pick the ASR backend from config; fall back to faster-whisper if whisper.cpp fails."""
+    want = cfg.get("asr_backend", "faster-whisper")
+    if want == "whisper.cpp":
+        try:
+            return WhisperCppBackend(cfg)
+        except ImportError:
+            log("whisper.cpp backend needs: pip install -r requirements-whispercpp.txt")
+        except Exception as e:
+            log(f"whisper.cpp backend failed to load ({e})")
+        log("Falling back to faster-whisper.")
+    elif want != "faster-whisper":
+        log(f"Unknown asr_backend '{want}' - using faster-whisper.")
+    return FasterWhisperBackend(cfg)
+
+
 def translate_loop(cfg, seg_q, ui_q, tts_q, state):
-    log(f"Loading Whisper '{cfg['model']}' on {cfg['device']} ({cfg['compute_type']})...")
-    model = load_model(cfg)
-    log("Model ready. Listening for speech...")
+    backend = load_backend(cfg)
+    log(f"Model ready ({backend.name}). Listening for speech...")
     ui_q.put(("status", "Translator ready"))
     skip = {s.lower() for s in cfg["skip_languages"]}
     skip_thr = cfg["skip_threshold"]
@@ -238,7 +410,7 @@ def translate_loop(cfg, seg_q, ui_q, tts_q, state):
             continue
 
         t0 = time.time()
-        lang, prob, text = run_whisper(model, audio, skip, skip_thr)
+        lang, prob, text = backend.run(audio, skip, skip_thr)
         if text is None:
             log(f"skip  ({lang} {prob:.0%}, {time.time() - t0:.2f}s)")
             continue

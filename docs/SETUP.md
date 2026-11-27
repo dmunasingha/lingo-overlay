@@ -14,6 +14,24 @@ If the automatic download stalls, download `config.json`, `model.bin`, `tokenize
 `vocabulary.txt` from `https://huggingface.co/Systran/faster-whisper-<model>/tree/main` into
 `models/<model>/`. The app uses that folder directly.
 
+### Optional: faster backend (whisper.cpp)
+
+faster-whisper always runs Whisper's encoder on a 30 s window, even for a 2 s callout.
+The whisper.cpp backend sizes the encoder to the phrase (`audio_ctx`), so short phrases translate faster.
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements-whispercpp.txt
+```
+
+Then set `"asr_backend": "whisper.cpp"` in `config.json`. The first run downloads
+`models/ggml-<model>-q8_0.bin` (small ≈ 250 MB, medium ≈ 800 MB) from
+`https://huggingface.co/ggerganov/whisper.cpp`. If that stalls, download the file yourself into `models/`.
+If pywhispercpp is missing or the model can't load, the app logs why and uses faster-whisper.
+
+Measured on 120 short clips (Ryzen 7 7700X, 6 threads; time from end of phrase to text, before the
+450 ms pause): `small` 1.04 s → 0.65 s with the same accuracy; with `whispercpp_audio_ctx_min: 256`, 0.34 s
+at slightly lower accuracy. Compare on your PC with `python scripts/asr_benchmark.py`.
+
 ## 2. Route voice chat into the translator (recommended)
 
 Without this step the translator listens to **all** PC audio, so gunshots and music can
@@ -75,6 +93,9 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `model` | `medium` | `small` ≈ 1.5 s, good · `medium` ≈ 3.8 s, better (CPU, 7700X) |
 | `device` | `cpu` | `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
 | `cpu_threads` | `6` | Lower to 4 if game FPS drops |
+| `asr_backend` | `faster-whisper` | `whisper.cpp` = faster on short phrases (see [Faster backend](#optional-faster-backend-whispercpp)) |
+| `whispercpp_model` | `""` | whisper.cpp model, e.g. `small-q8_0`. Empty = `<model>-q8_0` |
+| `whispercpp_audio_ctx_min` | `512` | Smallest encoder window (50 = 1 s). `256` is ~2x faster again, slightly less accurate |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |
