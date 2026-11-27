@@ -17,7 +17,11 @@ def test_shipped_word_list_loads(g):
     ("捷风大招好了。", "Jett ult is ready 。"),
     ("这把经济局。", "这把 eco round 。"),
     ("我特别讨厌这个clo。", "我特别讨厌这个Clove。"),
-    ("对面有 VANDAL", "对面有 Vandal"),
+    ("他有 VANDAL", "他有 Vandal"),
+    ("对面有冥驹", "the enemy 有 Operator"),
+    ("这什么6666666。", "这什么 nice! 。"),
+    ("他是演员，一直送人头", "他是 thrower ，一直 feeding"),
+    ("臭小孩儿。", "brat 。"),
 ])
 def test_apply_chinese(g, src, expected):
     assert g.apply(src, "zh") == expected
@@ -49,3 +53,8 @@ def test_longest_chinese_term_wins():
 ])
 def test_repair_misspelled_names(g, source, translation, expected):
     assert g.repair(source, translation) == expected
+
+
+def test_repair_covers_slang_words(g):
+    assert g.repair("牛逼 awesome", "Aawesome, carry me.") == "awesome, carry me."
+    assert g.repair("the enemy 有 Operator", "The eremy has Operator") == "The enemy has Operator"
