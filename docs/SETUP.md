@@ -82,6 +82,8 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `device`, `compute_type` | `cpu`, `int8` | faster-whisper only. `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
 | `cpu_threads` | `4` | Threads used while translating. Lower to 2–3 if game FPS drops |
 | `low_priority` | `true` | Below-normal process priority, so the game always gets the CPU first |
+| `vad_backend` | `silero` | Speech detector. `silero` (neural, ignores game noise, breathing and keyboard clicks) or `energy` (old volume threshold, tuned with `vad_threshold_db`) |
+| `vad_speech_threshold` | `0.5` | Silero only. Raise (e.g. `0.6`) if noise still triggers, lower if quiet speakers are missed |
 | `vad_silence_ms` | `450` | Pause that ends a phrase. Lower is faster, but more mid-sentence cuts |
 | `voice_enabled` | `false` | Speak translations |
 | `overlay_font_size`, `overlay_seconds`, `overlay_bottom_offset`, `overlay_opacity` | | Subtitle look |

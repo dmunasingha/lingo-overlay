@@ -9,7 +9,7 @@ Game voice chat ──► VB-Cable "CABLE Input" ──┬──► Windows "Lis
                                                      │
                                          capture thread (soundcard, 48 kHz → 16 kHz mono)
                                                      │
-                                         Segmenter: energy VAD, cuts phrases at 450 ms pauses
+                                         Segmenter: Silero VAD, cuts phrases at 450 ms pauses
                                                      │  queue (oldest phrases dropped if > 2 waiting)
                                          translate thread: Whisper (whisper.cpp q8_0, CPU)
                                            1. encoder window sized to the phrase (audio_ctx), not 30 s
@@ -62,8 +62,8 @@ Key ideas:
 3. **Streaming partials.** Re-run on the growing buffer every ~0.5 s and keep the prefix that
    stays stable across runs (the "LocalAgreement" approach from `whisper_streaming`). Subtitles appear
    while the person is still talking.
-4. **Neural VAD.** Silero VAD instead of the energy threshold. It works better with game noise,
-   breathing and keyboard clicks.
+4. **Neural VAD.** ✅ Done: Silero VAD replaced the energy threshold (`vad_backend`). It ignores game
+   noise, breathing and keyboard clicks; compare backends with `scripts/vad_benchmark.py`.
 
 ## Audio capture options
 
@@ -84,7 +84,7 @@ opt-in downloads only, clearly labelled.
 | ASR + language ID + translate | OpenAI Whisper (tiny … large-v3) | MIT | ✅ | `large-v3-turbo` is poor at the translate task. Use small/medium |
 | Runtime | faster-whisper / CTranslate2 | MIT | ✅ | alternative backend (`"backend": "faster-whisper"`) |
 | Runtime | whisper.cpp (via pywhispercpp, MIT) | MIT | ✅ | default backend, shortened `audio_ctx` |
-| VAD | Silero VAD | MIT | ✅ | planned |
+| VAD | Silero VAD | MIT | ✅ | current (v6 ONNX, bundled with faster-whisper) |
 | Language ID | SpeechBrain `lang-id-voxlingua107-ecapa` | Apache-2.0 | ✅ | planned, 107 languages |
 | Text MT (optional 2-stage) | Opus-MT (Helsinki-NLP) | CC-BY-4.0 | ✅ | attribution required; per-language-pair models |
 | Text MT (optional) | MADLAD-400 | Apache-2.0 | ✅ | large; GPU or slow |

@@ -1,7 +1,9 @@
 import numpy as np
 from helpers import SR, drain, silence, tone
 
-from translator import FRAME, Segmenter
+from translator import EnergyDetector, Segmenter
+
+FRAME = EnergyDetector.frame_len  # these tests cover the energy detector's timing
 
 
 def segments(cfg, q, audio, chunk=None):
