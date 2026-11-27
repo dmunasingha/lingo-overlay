@@ -46,6 +46,16 @@ trigger it. With it, it hears only voice chat.
    *Playback through* = your headset.
    </details>
 
+   <details><summary>Optional: let Lingo Overlay play voice chat and duck it while the translation speaks</summary>
+
+   Instead of Windows *Listen*, the app can play **CABLE Output** to your headset itself
+   (10 ms blocks) and lower voice chat while the translated voice talks. In `config.json` set
+   `"passthrough_enabled": true` (and `"passthrough_output_device"` to part of your headset's name
+   if it isn't the default), then **untick** *Listen to this device* on CABLE Output, or you will
+   hear voice chat twice. `duck_volume` (0-1) is the voice-chat level while speaking;
+   `duck_attack_ms` / `duck_release_ms` set how fast it fades down and back up.
+   </details>
+
 ### 2b. Point the game's voice chat at the cable
 
 | App | Setting |
