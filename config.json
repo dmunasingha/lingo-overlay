@@ -43,9 +43,14 @@
   "overlay_seconds": 6,
   "overlay_bottom_offset": 160,
   "overlay_opacity": 0.85,
+  "overlay_outline": 2,
+  "overlay_background": true,
+  "overlay_monitor": 0,
+  "overlay_anchor": null,
 
   "hotkey_toggle": "ctrl+alt+t",
   "hotkey_voice": "ctrl+alt+v",
   "hotkey_replay": "ctrl+alt+r",
-  "hotkey_quit": "ctrl+alt+q"
+  "hotkey_quit": "ctrl+alt+q",
+  "hotkey_edit": "ctrl+alt+e"
 }
