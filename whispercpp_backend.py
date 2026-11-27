@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 
 FULL_CTX = 1500  # 30 s of 20 ms encoder frames
+MIN_SAMPLES = int(1.1 * 16000)  # whisper.cpp skips audio shorter than 1 s; pad short callouts
 
 
 class WhisperCppModel:
@@ -59,6 +60,8 @@ class WhisperCppModel:
 
     def run(self, audio, skip, skip_thr, min_lang_prob=0.0):
         audio = np.ascontiguousarray(audio, dtype=np.float32)
+        if len(audio) < MIN_SAMPLES:  # whisper.cpp silently ignores input under 1 s
+            audio = np.pad(audio, (0, MIN_SAMPLES - len(audio)))
         ctx = self.audio_ctx(len(audio))
         self._set_ctx(ctx, audio)
         (lang, prob), probs = self.model.auto_detect_language(audio)
