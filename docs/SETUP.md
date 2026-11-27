@@ -80,8 +80,9 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | `backend` | `whisper.cpp` | `whisper.cpp` (fast, short encoder window) or `faster-whisper` (slower, slightly higher quality) |
 | `whispercpp_min_ctx` | `256` | Smallest encoder window in 20 ms frames. 128 is ~0.15 s faster but misses more phrases |
 | `device`, `compute_type` | `cpu`, `int8` | faster-whisper only. `cuda` only when **not** gaming. Games keep the GPU at ~100 % |
-| `cpu_threads` | `4` | Threads used while translating. Lower to 2–3 if game FPS drops |
-| `low_priority` | `true` | Below-normal process priority, so the game always gets the CPU first |
+| `cpu_threads` | `4` | Threads used while translating. Lower to 2–3 if game FPS drops. See [PERFORMANCE.md](PERFORMANCE.md) for a per-CPU table |
+| `process_priority` | `below_normal` | `normal`, `below_normal` or `idle`. Below-normal lets the game win every contested core |
+| `cpu_affinity` | `off` | `off`, `"last:N"` (highest N logical CPUs) or a list like `[8, 9, 10, 11]`. Only turn on if a measurement shows it helps |
 | `vad_backend` | `silero` | Speech detector. `silero` (neural, ignores game noise, breathing and keyboard clicks) or `energy` (old volume threshold, tuned with `vad_threshold_db`) |
 | `vad_speech_threshold` | `0.5` | Silero only. Raise (e.g. `0.6`) if noise still triggers, lower if quiet speakers are missed |
 | `vad_silence_ms` | `450` | Pause that ends a phrase (with `vad_adaptive`: the pause when the end is unclear). Lower is faster, but more mid-sentence cuts |
@@ -100,5 +101,6 @@ Run the game in **Borderless Windowed** mode so the subtitle overlay shows on to
 | Console says `Input device 'CABLE Output' not found` | VB-Cable isn't installed, so the app is using all speaker audio |
 | Subtitles don't appear over the game | Switch the game to Borderless Windowed |
 | Hotkeys don't work in game | If the game runs as administrator, run `run.bat` as administrator too |
+| Game FPS drops while translating | Lower `cpu_threads`, try `"cpu_affinity": "last:4"`, and measure with [PERFORMANCE.md](PERFORMANCE.md) |
 | Translations come in seconds late | Use `"model": "small"`, check `cpu_threads`, close other heavy apps |
 | High CPU use | Route voice chat through VB-Cable (step 2). On speaker audio every game sound is checked for speech |

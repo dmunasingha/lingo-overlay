@@ -27,3 +27,4 @@ Desktop.ini
 
 # Claude Code local settings
 .claude/settings.local.json
+/bench/

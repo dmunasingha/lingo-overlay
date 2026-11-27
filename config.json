@@ -13,7 +13,8 @@
   "device": "cpu",
   "compute_type": "int8",
   "cpu_threads": 4,
-  "low_priority": true,
+  "process_priority": "below_normal",
+  "cpu_affinity": "off",
 
   "vad_backend": "silero",
   "vad_speech_threshold": 0.5,

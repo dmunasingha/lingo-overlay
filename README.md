@@ -64,6 +64,7 @@ Latency is measured from the end of speech to the subtitle being ready.
 - [Goals](docs/GOALS.md): vision, principles, success metrics, non-goals
 - [Roadmap](docs/ROADMAP.md): phased build plan
 - [Architecture](docs/ARCHITECTURE.md): pipeline, latency breakdown, model licenses
+- [Performance](docs/PERFORMANCE.md): measuring and limiting game FPS impact
 - [Contributing](CONTRIBUTING.md): guidelines, anti-cheat rules, workflow
 
 ## License
